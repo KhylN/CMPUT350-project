@@ -1,5 +1,4 @@
 #include "BasicSc2Bot.h"
-#include <cassert>
 
 void BasicSc2Bot::OnGameStart() { return; }
 
