@@ -3,6 +3,7 @@
 
 #include "sc2api/sc2_api.h"
 #include "sc2api/sc2_args.h"
+#include "sc2api/sc2_unit_filters.h" // needed for isUnit
 #include "sc2lib/sc2_lib.h"
 #include "sc2utils/sc2_arg_parser.h"
 #include "sc2utils/sc2_manage_process.h"
@@ -19,6 +20,8 @@ private:
                     sc2::UNIT_TYPEID unit_type = sc2::UNIT_TYPEID::TERRAN_SCV);
 
   bool TryBuildSupplyDepot();
+
+  const sc2::Unit *FindNearestMineralPatch(const sc2::Point2D &start);
 };
 
 #endif
