@@ -38,8 +38,65 @@ void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
 
 // manage scv's willl limit our scv production to 31
 void BasicSc2Bot::ManageSCVs() {
+  // Train more SCVs if there are fewer than 31
   if (CountUnits(UNIT_TYPEID::TERRAN_SCV) < 31) {
     TryBuildStructure(ABILITY_ID::TRAIN_SCV, UNIT_TYPEID::TERRAN_COMMANDCENTER);
+  }
+
+  // force SCVs to build refineries and harvest vespene
+  ForceSCVsToBuildAndHarvest();
+}
+
+void BasicSc2Bot::ForceSCVsToBuildAndHarvest() {
+  const ObservationInterface *observation = Observation();
+  Units scvs = observation->GetUnits(Unit::Alliance::Self,
+                                     IsUnit(UNIT_TYPEID::TERRAN_SCV));
+  Units geysers = observation->GetUnits(
+      Unit::Alliance::Neutral, IsUnit(UNIT_TYPEID::NEUTRAL_VESPENEGEYSER));
+
+  // get command center position
+  const Unit *command_center =
+      observation
+          ->GetUnits(Unit::Alliance::Self,
+                     IsUnit(UNIT_TYPEID::TERRAN_COMMANDCENTER))
+          .front();
+  Point2D base_position = command_center->pos;
+
+  int scv_count = 0;
+  int refinery_count = CountUnits(UNIT_TYPEID::TERRAN_REFINERY);
+
+  // force at least 10 SCVs are focused on vespene
+  for (const auto &geyser : geysers) {
+    // command SCVs to harvest vespene
+    for (const auto &scv : scvs) {
+      if (scv_count < 10 &&
+          scv->orders.empty()) { // Ensure at least 10 SCVs are busy harvesting
+        Actions()->UnitCommand(scv, ABILITY_ID::SMART, geyser);
+        ++scv_count;
+      }
+    }
+  }
+
+  // Build refineries if fewer than 2 exist
+  if (refinery_count < 2) {
+    scv_count = 0; // Reset SCV count for building refineries
+    // Loop through geysers again to find the closest ones
+    for (const auto &geyser : geysers) {
+      // Check distance from the base
+      float distance = Distance2D(geyser->pos, base_position);
+
+      if (distance < 20.0f) { // find geysers within 20 units of distance
+        // Find an available SCV to build a refinery
+        for (const auto &scv : scvs) {
+          if (scv_count < 10 &&
+              scv->orders.empty()) { // Ensure SCVs are not busy
+            Actions()->UnitCommand(scv, ABILITY_ID::BUILD_REFINERY, geyser);
+            ++scv_count; // Increment the count of SCVs commanded to build
+            break;
+          }
+        }
+      }
+    }
   }
 }
 
