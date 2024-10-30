@@ -25,6 +25,7 @@ private:
                     sc2::UNIT_TYPEID unit_type = sc2::UNIT_TYPEID::TERRAN_SCV);
   bool TryBuildSupplyDepot();
   const sc2::Unit *FindNearestMineralPatch(const sc2::Point2D &start);
+  void TrainStarportUnits();
   void ForceSCVsToBuildAndHarvest();
 };
 
