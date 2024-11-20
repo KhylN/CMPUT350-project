@@ -208,6 +208,7 @@ void BasicSc2Bot::ManageStarport() {
   1) Starport MUST have Tech Lab to make a Banshee
     - If a Starport does not have Tech Lab, we order it to build one.
   2) Eligible Starports will train Banshees
+  3) Eligible Starports will train Medivac if 10 Banshees are already produced.
   */
 
   Units starports = Observation()->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_STARPORT));
@@ -219,9 +220,14 @@ void BasicSc2Bot::ManageStarport() {
       Actions()->UnitCommand(starport, ABILITY_ID::BUILD_TECHLAB);
     } else if (add_on && add_on->unit_type == UNIT_TYPEID::TERRAN_STARPORTTECHLAB && starport->orders.empty()) {
       // If the Starport has the Tech Lab add-on and it is idle, order BANSHEE creation IFF we have fewer than 10 and greater than 5 Siege Tanks.
-       if (CountUnits(UNIT_TYPEID::TERRAN_BANSHEE) < 10 && CountUnits(UNIT_TYPEID::TERRAN_SIEGETANK) >= 5) {
+      if (CountUnits(UNIT_TYPEID::TERRAN_BANSHEE) < 10 && CountUnits(UNIT_TYPEID::TERRAN_SIEGETANK) >= 5) {
         Actions()->UnitCommand(starport, ABILITY_ID::TRAIN_BANSHEE);
       }
+      if (CountUnits(UNIT_TYPEID::TERRAN_MEDIVAC) < 5 && starport->orders.empty()) {
+      // If the Starport is still idle, then we have maxed Banshee and Tanks. Attempt to train Medivac (if not maxed.)
+        Actions()->UnitCommand(starport, ABILITY_ID::TRAIN_MEDIVAC);
+      }
+
     }
   }
 }
