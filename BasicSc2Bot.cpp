@@ -56,6 +56,8 @@ void BasicSc2Bot::ForceSCVsToBuildAndHarvest() {
   const ObservationInterface *observation = Observation();
   Units scvs = observation->GetUnits(Unit::Alliance::Self,
                                      IsUnit(UNIT_TYPEID::TERRAN_SCV));
+  Units refineries = observation->GetUnits(
+      Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_REFINERY));
   Units geysers = observation->GetUnits(
       Unit::Alliance::Neutral, IsUnit(UNIT_TYPEID::NEUTRAL_VESPENEGEYSER));
 
@@ -67,20 +69,60 @@ void BasicSc2Bot::ForceSCVsToBuildAndHarvest() {
           .front();
   Point2D base_position = command_center->pos;
 
-  int scv_count = 0;
-  int refinery_count = CountUnits(UNIT_TYPEID::TERRAN_REFINERY);
   // Build refineries if fewer than 2 exist
-  if (refinery_count < 2) {
-    // for each loop, https://www.w3schools.com/cpp/cpp_for_loop_foreach.asp,
-    // very useful
+  if (CountUnits(UNIT_TYPEID::TERRAN_REFINERY) < 2) {
     for (const auto &geyser : geysers) {
       // Check distance from the base
       float distance = Distance2D(geyser->pos, base_position);
       if (distance < 20.0f) { // Only consider geysers within 20 units
         for (const auto &scv : scvs) {
-          if (scv_count < 10 && scv->orders.empty()) {
+          // Only select SCVs that are not currently harvesting or building
+          if (scv->orders.empty() ||
+              (scv->orders.front().ability_id != ABILITY_ID::HARVEST_GATHER &&
+               scv->orders.front().ability_id != ABILITY_ID::HARVEST_RETURN)) {
             Actions()->UnitCommand(scv, ABILITY_ID::BUILD_REFINERY, geyser);
-            ++scv_count;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // Assign SCVs to refineries
+  for (const auto &refinery : refineries) {
+    int scv_count = 0;
+
+    // Count the number of SCVs already harvesting from this refinery
+    for (const auto &scv : scvs) {
+      if (!scv->orders.empty() &&
+          scv->orders.front().target_unit_tag == refinery->tag) {
+        ++scv_count;
+      }
+    }
+
+    // Ensure exactly 3 SCVs per refinery
+    if (scv_count < 3) {
+      for (const auto &scv : scvs) {
+        if (scv_count >= 3) {
+          break; // Stop assigning SCVs once the max is reached
+        }
+        // Only select idle SCVs or those not assigned to other tasks
+        if (scv->orders.empty() ||
+            (scv->orders.front().ability_id != ABILITY_ID::BUILD_REFINERY &&
+             scv->orders.front().ability_id != ABILITY_ID::HARVEST_GATHER &&
+             scv->orders.front().ability_id != ABILITY_ID::HARVEST_RETURN)) {
+          Actions()->UnitCommand(scv, ABILITY_ID::SMART, refinery);
+          ++scv_count;
+        }
+      }
+    } else if (scv_count > 3) {
+      // Unassign extra SCVs if more than 3 are assigned
+      for (const auto &scv : scvs) {
+        if (!scv->orders.empty() &&
+            scv->orders.front().target_unit_tag == refinery->tag) {
+          Actions()->UnitCommand(scv, ABILITY_ID::STOP);
+          --scv_count;
+          if (scv_count == 3) {
             break;
           }
         }
