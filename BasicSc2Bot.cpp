@@ -231,8 +231,9 @@ void BasicSc2Bot::ManageFactory() {
         // Produce Hellions if fewer than 5 exist
         Actions()->UnitCommand(factory, ABILITY_ID::TRAIN_HELLION);
       } else if (CountUnits(UNIT_TYPEID::VIKING) >= 5 &&
+                 CountUnits(UNIT_TYPEID::TERRAN_SIEGETANK) < 7 &&
                  factory->orders.empty()) {
-        // After producing Hellions, produce Siege Tanks if fewer than 20 exist
+        // After producing Hellions, produce Siege Tanks if fewer than 7 exist
         Actions()->UnitCommand(factory, ABILITY_ID::TRAIN_SIEGETANK);
       }
     }
