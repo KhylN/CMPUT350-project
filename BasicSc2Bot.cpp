@@ -20,8 +20,8 @@ void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
   }
   case UNIT_TYPEID::TERRAN_SCV: {
     // TODO: Try to prioritize some SCVs to find gas as opposed to mineral.
-    const Unit* mineral_target = FindNearestMineralPatch(unit->pos);
-    const Unit* gas_target = FindNearestVespene(unit->pos);
+    const Unit *mineral_target = FindNearestMineralPatch(unit->pos);
+    const Unit *gas_target = FindNearestVespene(unit->pos);
 
     if (mineral_target) {
       Actions()->UnitCommand(unit, ABILITY_ID::SMART, mineral_target);
@@ -36,7 +36,7 @@ void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
     */
   }
   case UNIT_TYPEID::TERRAN_BARRACKS: {
-    if (CountUnits(UNIT_TYPEID::TERRAN_MARINE) < 30) {
+    if (CountUnits(UNIT_TYPEID::TERRAN_MARINE) < 20) {
       Actions()->UnitCommand(unit, ABILITY_ID::TRAIN_MARINE);
     }
     break;
@@ -56,6 +56,8 @@ void BasicSc2Bot::ForceSCVsToBuildAndHarvest() {
   const ObservationInterface *observation = Observation();
   Units scvs = observation->GetUnits(Unit::Alliance::Self,
                                      IsUnit(UNIT_TYPEID::TERRAN_SCV));
+  Units refineries = observation->GetUnits(
+      Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_REFINERY));
   Units geysers = observation->GetUnits(
       Unit::Alliance::Neutral, IsUnit(UNIT_TYPEID::NEUTRAL_VESPENEGEYSER));
 
@@ -67,20 +69,60 @@ void BasicSc2Bot::ForceSCVsToBuildAndHarvest() {
           .front();
   Point2D base_position = command_center->pos;
 
-  int scv_count = 0;
-  int refinery_count = CountUnits(UNIT_TYPEID::TERRAN_REFINERY);
   // Build refineries if fewer than 2 exist
-  if (refinery_count < 2) {
-    // for each loop, https://www.w3schools.com/cpp/cpp_for_loop_foreach.asp,
-    // very useful
+  if (CountUnits(UNIT_TYPEID::TERRAN_REFINERY) < 2) {
     for (const auto &geyser : geysers) {
       // Check distance from the base
       float distance = Distance2D(geyser->pos, base_position);
       if (distance < 20.0f) { // Only consider geysers within 20 units
         for (const auto &scv : scvs) {
-          if (scv_count < 10 && scv->orders.empty()) {
+          // Only select SCVs that are not currently harvesting or building
+          if (scv->orders.empty() ||
+              (scv->orders.front().ability_id != ABILITY_ID::HARVEST_GATHER &&
+               scv->orders.front().ability_id != ABILITY_ID::HARVEST_RETURN)) {
             Actions()->UnitCommand(scv, ABILITY_ID::BUILD_REFINERY, geyser);
-            ++scv_count;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // Assign SCVs to refineries
+  for (const auto &refinery : refineries) {
+    int scv_count = 0;
+
+    // Count the number of SCVs already harvesting from this refinery
+    for (const auto &scv : scvs) {
+      if (!scv->orders.empty() &&
+          scv->orders.front().target_unit_tag == refinery->tag) {
+        ++scv_count;
+      }
+    }
+
+    // Ensure exactly 3 SCVs per refinery
+    if (scv_count < 3) {
+      for (const auto &scv : scvs) {
+        if (scv_count >= 3) {
+          break; // Stop assigning SCVs once the max is reached
+        }
+        // Only select idle SCVs or those not assigned to other tasks
+        if (scv->orders.empty() ||
+            (scv->orders.front().ability_id != ABILITY_ID::BUILD_REFINERY &&
+             scv->orders.front().ability_id != ABILITY_ID::HARVEST_GATHER &&
+             scv->orders.front().ability_id != ABILITY_ID::HARVEST_RETURN)) {
+          Actions()->UnitCommand(scv, ABILITY_ID::SMART, refinery);
+          ++scv_count;
+        }
+      }
+    } else if (scv_count > 3) {
+      // Unassign extra SCVs if more than 3 are assigned
+      for (const auto &scv : scvs) {
+        if (!scv->orders.empty() &&
+            scv->orders.front().target_unit_tag == refinery->tag) {
+          Actions()->UnitCommand(scv, ABILITY_ID::STOP);
+          --scv_count;
+          if (scv_count == 3) {
             break;
           }
         }
@@ -94,16 +136,17 @@ void BasicSc2Bot::ManageTroopsAndBuildings() {
   TryBuildBarracks();
   ManageBarracks();
 
+  TryBuildStarport();
+  ManageStarport();
+
   TryBuildFactory();
   ManageFactory();
 
-  TryBuildStarport();
-  ManageStarport();
+  ManageAllTroops();
 
   // TODO: implement building medivacs later, seem to be useful cause they can
   // heal "biological troops"
   // https://liquipedia.net/starcraft2/Medivac_(Legacy_of_the_Void)
-
 }
 
 void BasicSc2Bot::ManageSupply() { TryBuildSupplyDepot(); }
@@ -133,9 +176,10 @@ bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure,
 
   float rx = GetRandomScalar();
   float ry = GetRandomScalar();
+  float build_radius = 10.0f;
   Actions()->UnitCommand(unit_to_build, ability_type_for_structure,
-                         Point2D(unit_to_build->pos.x + rx * 15.0f,
-                                 unit_to_build->pos.y + ry * 15.0f));
+                         Point2D(unit_to_build->pos.x + rx * build_radius,
+                                 unit_to_build->pos.y + ry * build_radius));
   return true;
 }
 
@@ -158,56 +202,128 @@ bool BasicSc2Bot::TryBuildBarracks() {
 
 bool BasicSc2Bot::TryBuildStarport() {
   // Build Starport if we don't have one and if we have a Factory.
-  if (CountUnits(UNIT_TYPEID::TERRAN_STARPORT) < 1 && CountUnits(UNIT_TYPEID::TERRAN_FACTORY) > 0) {
-    return TryBuildStructure(ABILITY_ID::BUILD_STARPORT, UNIT_TYPEID::TERRAN_SCV);
+  if (CountUnits(UNIT_TYPEID::TERRAN_STARPORT) < 1 &&
+      CountUnits(UNIT_TYPEID::TERRAN_FACTORY) > 0) {
+    return TryBuildStructure(ABILITY_ID::BUILD_STARPORT,
+                             UNIT_TYPEID::TERRAN_SCV);
   }
   return false;
 }
 
 bool BasicSc2Bot::TryBuildFactory() {
-  // Build Factory if we have built the 30 Marines.
-  if (CountUnits(UNIT_TYPEID::TERRAN_MARINE) >= 30) {
+  // Build Factory if we have built the 20 Marines.
+  if (CountUnits(UNIT_TYPEID::TERRAN_MARINE) >= 20) {
     if (CountUnits(UNIT_TYPEID::TERRAN_FACTORY) < 1) {
-      return TryBuildStructure(ABILITY_ID::BUILD_FACTORY, UNIT_TYPEID::TERRAN_SCV);
+      return TryBuildStructure(ABILITY_ID::BUILD_FACTORY,
+                               UNIT_TYPEID::TERRAN_SCV);
     }
   }
   return false;
 }
 
-// MODULAR UNIT TRAINING FUNCTIONS  
+// TROOP MANAGEMENT
+
+void BasicSc2Bot::ManageAllTroops() {
+  // patrol command for Marines
+  Units marines = Observation()->GetUnits(Unit::Alliance::Self,
+                                          IsUnit(UNIT_TYPEID::TERRAN_MARINE));
+  for (const auto &marine : marines) {
+    if (marine->orders.empty()) { // If marine is idle
+      Actions()->UnitCommand(marine, ABILITY_ID::GENERAL_PATROL,
+                             GetBaseLocation());
+    }
+  }
+
+  // patrol command for Hellions
+  Units hellions = Observation()->GetUnits(Unit::Alliance::Self,
+                                           IsUnit(UNIT_TYPEID::TERRAN_HELLION));
+  for (const auto &hellion : hellions) {
+    if (hellion->orders.empty()) { // If hellion is idle
+      Actions()->UnitCommand(hellion, ABILITY_ID::GENERAL_PATROL,
+                             GetBaseLocation());
+    }
+  }
+
+  // patrol command for Siege Tanks
+  Units siegeTanks = Observation()->GetUnits(
+      Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_SIEGETANK));
+  for (const auto &tank : siegeTanks) {
+    if (tank->orders.empty()) {
+      Actions()->UnitCommand(tank, ABILITY_ID::GENERAL_PATROL,
+                             GetBaseLocation());
+    }
+  }
+
+  // patrol command for Medivacs
+  Units medivacs = Observation()->GetUnits(Unit::Alliance::Self,
+                                           IsUnit(UNIT_TYPEID::TERRAN_MEDIVAC));
+  for (const auto &medivac : medivacs) {
+    if (medivac->orders.empty()) { // If medivac is idle
+      Actions()->UnitCommand(medivac, ABILITY_ID::GENERAL_PATROL,
+                             GetBaseLocation());
+    }
+  }
+
+  // patrol command for Vikings
+  Units vikings = Observation()->GetUnits(
+      Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_VIKINGFIGHTER));
+  for (const auto &viking : vikings) {
+    if (viking->orders.empty()) {
+      Actions()->UnitCommand(viking, ABILITY_ID::GENERAL_PATROL,
+                             GetBaseLocation());
+    }
+  }
+}
+
+// MODULAR UNIT TRAINING FUNCTIONS
 
 void BasicSc2Bot::ManageBarracks() {
-  // If we have fewer than 30 Marines, attempt to train Barracks.
-  if (CountUnits(UNIT_TYPEID::TERRAN_MARINE) < 30) {
-      Units barracks = Observation()->GetUnits(
-          Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_BARRACKS)); // Get list of all barracks on our team.
-      for (const auto &barrack : barracks) {
-        if (barrack->orders.empty()) {
-          Actions()->UnitCommand(barrack, ABILITY_ID::TRAIN_MARINE); // Order barracks to train Marine if no orders given yet.
-        }
+  // If we have fewer than 20 Marines, attempt to train Barracks.
+  if (CountUnits(UNIT_TYPEID::TERRAN_MARINE) < 20) {
+    Units barracks = Observation()->GetUnits(
+        Unit::Alliance::Self,
+        IsUnit(UNIT_TYPEID::TERRAN_BARRACKS)); // Get list of all barracks on
+                                               // our team.
+    for (const auto &barrack : barracks) {
+      if (barrack->orders.empty()) {
+        Actions()->UnitCommand(
+            barrack,
+            ABILITY_ID::TRAIN_MARINE); // Order barracks to train Marine if no
+                                       // orders given yet.
       }
+    }
   }
 }
 
 void BasicSc2Bot::ManageFactory() {
   /*
   Training Pipeline:
-  1) Factory MUST have Tech Lab to make a Siege Tank
+  1) Produce 5 Hellions first, then transition to Siege Tanks.
+  2) Factory MUST have Tech Lab to make a Siege Tank
     - If a Starport does not have Tech Lab, we order it to build one.
-  2) Eligible Starports will train Siege Tank
+  3) Eligible Starports will train Siege Tank
   */
-  Units factories = Observation()->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_FACTORY));
+  Units factories = Observation()->GetUnits(
+      Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_FACTORY));
 
   for (const auto &factory : factories) {
     const Unit *add_on = Observation()->GetUnit(factory->add_on_tag);
-    if (factory->add_on_tag == NullTag) { // Check if Factory has no add-on,
-                                          // i.e. there is no tech lab
+    if (factory->add_on_tag == NullTag) {
+      // If Factory has no add-on, order it to build a Tech Lab
       Actions()->UnitCommand(factory, ABILITY_ID::BUILD_TECHLAB);
-    } else if (add_on && add_on->unit_type == UNIT_TYPEID::TERRAN_FACTORYTECHLAB && factory->orders.empty()) {    
-      // If the Factory has a Tech Lab add-on and it is idle, order SIEGE TANK creation IFF we have fewer than 20.  
-        if (CountUnits(UNIT_TYPEID::TERRAN_SIEGETANK) < 20) {
-          Actions()->UnitCommand(factory, ABILITY_ID::TRAIN_SIEGETANK);
-        }
+    } else if (add_on &&
+               add_on->unit_type == UNIT_TYPEID::TERRAN_FACTORYTECHLAB) {
+      // If Factory has a Tech Lab, order it to produce Hellions and Siege Tanks
+      if (CountUnits(UNIT_TYPEID::TERRAN_HELLION) < 5 &&
+          factory->orders.empty()) {
+        // Produce Hellions if fewer than 5 exist
+        Actions()->UnitCommand(factory, ABILITY_ID::TRAIN_HELLION);
+      } else if (CountUnits(UNIT_TYPEID::VIKING) >= 5 &&
+                 CountUnits(UNIT_TYPEID::TERRAN_SIEGETANK) < 7 &&
+                 factory->orders.empty()) {
+        // After producing Hellions, produce Siege Tanks if fewer than 7 exist
+        Actions()->UnitCommand(factory, ABILITY_ID::TRAIN_SIEGETANK);
+      }
     }
   }
 }
@@ -218,26 +334,33 @@ void BasicSc2Bot::ManageStarport() {
   1) Starport MUST have Tech Lab to make a Banshee
     - If a Starport does not have Tech Lab, we order it to build one.
   2) Eligible Starports will train Banshees
-  3) Eligible Starports will train Medivac if 10 Banshees are already produced.
+  3) Eligible Starports will train 3 Medivac and then 5 Vikings are created.
   */
 
-  Units starports = Observation()->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_STARPORT));
+  Units starports = Observation()->GetUnits(
+      Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_STARPORT));
 
   for (const auto &starport : starports) {
     const Unit *add_on = Observation()->GetUnit(starport->add_on_tag);
     if (starport->add_on_tag == NullTag) { // Check if Starport has no add-on
                                            // i.e. there is no tech lab
       Actions()->UnitCommand(starport, ABILITY_ID::BUILD_TECHLAB);
-    } else if (add_on && add_on->unit_type == UNIT_TYPEID::TERRAN_STARPORTTECHLAB && starport->orders.empty()) {
-      // If the Starport has the Tech Lab add-on and it is idle, order BANSHEE creation IFF we have fewer than 10 and greater than 5 Siege Tanks.
-      if (CountUnits(UNIT_TYPEID::TERRAN_BANSHEE) < 10 && CountUnits(UNIT_TYPEID::TERRAN_SIEGETANK) >= 5) {
-        Actions()->UnitCommand(starport, ABILITY_ID::TRAIN_BANSHEE);
+    } else if (add_on &&
+               add_on->unit_type == UNIT_TYPEID::TERRAN_STARPORTTECHLAB &&
+               starport->orders.empty()) {
+      // If the Starport has the Tech Lab add-on and it is idle, order VIKING
+      // creation IFF we have fewer than 5 Vikings
+      if (CountUnits(UNIT_TYPEID::TERRAN_VIKINGFIGHTER) < 5) {
+        Actions()->UnitCommand(starport, ABILITY_ID::TRAIN_VIKINGFIGHTER);
       }
-      if (CountUnits(UNIT_TYPEID::TERRAN_MEDIVAC) < 5 && starport->orders.empty()) {
-      // If the Starport is still idle, then we have maxed Banshee and Tanks. Attempt to train Medivac (if not maxed.)
+      // only make medivacs if there are 5 vikings
+      if (CountUnits(UNIT_TYPEID::TERRAN_VIKINGFIGHTER) >= 5 &&
+          CountUnits(UNIT_TYPEID::TERRAN_MEDIVAC) < 3 &&
+          starport->orders.empty()) {
+        // If the Starport is still idle, then we have maxed VIKING and Tanks.
+        // Attempt to train Medivac (if not maxed.)
         Actions()->UnitCommand(starport, ABILITY_ID::TRAIN_MEDIVAC);
       }
-
     }
   }
 }
@@ -274,7 +397,6 @@ const Unit *BasicSc2Bot::FindNearestVespene(const Point2D &start) {
   return target;
 }
 
-
 // helper funciton to determine how many of a cetain unit we have
 int BasicSc2Bot::CountUnits(UNIT_TYPEID unit_type) {
   const ObservationInterface *observation = Observation();
@@ -286,4 +408,15 @@ int BasicSc2Bot::CountUnits(UNIT_TYPEID unit_type) {
     }
   }
   return count;
+}
+
+// Function to get the location fo the commance center
+Point2D BasicSc2Bot::GetBaseLocation() {
+  const ObservationInterface *observation = Observation();
+  const Unit *command_center =
+      observation
+          ->GetUnits(Unit::Alliance::Self,
+                     IsUnit(UNIT_TYPEID::TERRAN_COMMANDCENTER))
+          .front();
+  return command_center->pos;
 }

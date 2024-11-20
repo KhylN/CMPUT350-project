@@ -10,8 +10,8 @@
 
 class BasicSc2Bot : public sc2::Agent {
 public:
-	virtual void OnGameStart();
-	virtual void OnStep();
+  virtual void OnGameStart();
+  virtual void OnStep();
   virtual void OnUnitIdle(const sc2::Unit *unit);
 
 private:
@@ -33,8 +33,12 @@ private:
   void ManageStarport();
   void ManageFactory();
 
+  void ManageAllTroops();
+
+  sc2::Point2D GetBaseLocation();
+
   const sc2::Unit *FindNearestMineralPatch(const sc2::Point2D &start);
-  const sc2::Unit *BasicSc2Bot::FindNearestVespene(const Point2D &start);
+  const sc2::Unit *FindNearestVespene(const sc2::Point2D &start);
   void ForceSCVsToBuildAndHarvest();
 };
 
