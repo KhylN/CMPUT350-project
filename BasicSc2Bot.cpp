@@ -27,14 +27,79 @@ void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
       Actions()->UnitCommand(unit, ABILITY_ID::SMART, mineral_target);
     }
     break;
-
     /*
     if (gas_target) {
       Actions()->UnitCommand(unit, ABILITY_ID::SMART, gas_target);
     }
     break;
     */
+
   }
+
+case UNIT_TYPEID::TERRAN_MARINE: {
+    // Static variables to track the scout Marine's ID and discovered enemy base location
+    static Tag scout_marine_id = 0; // 0 means no scout assigned yet
+    static size_t current_target_index = 0; // Index of the current enemy start position to scout
+    static Point2D enemy_base_location; // Enemy base location when identified
+    static bool scout_died = false; // Flag to indicate if the scout has died
+
+    // Get all Marines controlled by the player
+    Units marines = Observation()->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_MARINE));
+    const GameInfo& game_info = Observation()->GetGameInfo();
+
+    // Check if there are any enemy start locations
+    if (game_info.enemy_start_locations.empty()) {
+        break; // No enemy start locations to scout
+    }
+
+    if (scout_died) {
+        // If the scout Marine is dead, ensure all other Marines are patrolling
+        for (const auto &marine : marines) {
+            if (marine->orders.empty()) {
+                Actions()->UnitCommand(marine, ABILITY_ID::GENERAL_PATROL, GetBaseLocation());
+            }
+        }
+        break; // Exit the case since no further scouting is needed
+    }
+
+    for (const auto &marine : marines) {
+        if (scout_marine_id == 0) {
+            // Assign the first idle Marine as the scout if no scout is designated
+            if (marine->orders.empty()) {
+                scout_marine_id = marine->tag; // Assign this Marine as the scout
+                Actions()->UnitCommand(marine, ABILITY_ID::ATTACK_ATTACK, game_info.enemy_start_locations[current_target_index]);
+            }
+        } else if (marine->tag == scout_marine_id) {
+            // If this Marine is already the scout, ensure it continues scouting
+            if (marine->orders.empty()) {
+                // Move to the next target location if the scout has reached the current one
+                current_target_index = (current_target_index + 1) % game_info.enemy_start_locations.size();
+                Actions()->UnitCommand(marine, ABILITY_ID::ATTACK_ATTACK, game_info.enemy_start_locations[current_target_index]);
+            }
+        } else {
+            // Other idle Marines should patrol
+            if (marine->orders.empty()) {
+                Actions()->UnitCommand(marine, ABILITY_ID::GENERAL_PATROL, GetBaseLocation());
+            }
+        }
+    }
+
+    // Check if the scout Marine is alive
+    bool scout_is_alive = false;
+    for (const auto &marine : marines) {
+        if (marine->tag == scout_marine_id) {
+            scout_is_alive = true;
+            break;
+        }
+    }
+
+    if (!scout_is_alive && scout_marine_id != 0) {
+        // If the scout Marine is dead, mark the scout as dead
+        scout_died = true;
+    }
+
+    break;
+}
   case UNIT_TYPEID::TERRAN_BARRACKS: {
     if (CountUnits(UNIT_TYPEID::TERRAN_MARINE) < 30) {
       Actions()->UnitCommand(unit, ABILITY_ID::TRAIN_MARINE);
@@ -235,16 +300,6 @@ void BasicSc2Bot::ManageBarracks() {
             ABILITY_ID::TRAIN_MARINE); // Order barracks to train Marine if no
                                        // orders given yet.
       }
-    }
-  }
-
-  // patrol command fro marines
-  Units marines = Observation()->GetUnits(Unit::Alliance::Self,
-                                          IsUnit(UNIT_TYPEID::TERRAN_MARINE));
-  for (const auto &marine : marines) {
-    if (marine->orders.empty()) { // If marine is idle
-      Actions()->UnitCommand(marine, ABILITY_ID::GENERAL_PATROL,
-                             GetBaseLocation());
     }
   }
 }
