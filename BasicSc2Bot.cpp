@@ -19,11 +19,21 @@ void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
     break;
   }
   case UNIT_TYPEID::TERRAN_SCV: {
-    const Unit *mineral_target = FindNearestMineralPatch(unit->pos);
+    // TODO: Try to prioritize some SCVs to find gas as opposed to mineral.
+    const Unit* mineral_target = FindNearestMineralPatch(unit->pos);
+    const Unit* gas_target = FindNearestVespene(unit->pos);
+
     if (mineral_target) {
       Actions()->UnitCommand(unit, ABILITY_ID::SMART, mineral_target);
     }
     break;
+
+    /*
+    if (gas_target) {
+      Actions()->UnitCommand(unit, ABILITY_ID::SMART, gas_target);
+    }
+    break;
+    */
   }
   case UNIT_TYPEID::TERRAN_BARRACKS: {
     if (CountUnits(UNIT_TYPEID::TERRAN_MARINE) < 30) {
@@ -247,6 +257,23 @@ const Unit *BasicSc2Bot::FindNearestMineralPatch(const Point2D &start) {
   }
   return target;
 }
+
+const Unit *BasicSc2Bot::FindNearestVespene(const Point2D &start) {
+  Units units = Observation()->GetUnits(Unit::Alliance::Neutral);
+  float distance = std::numeric_limits<float>::max();
+  const Unit *target = nullptr;
+  for (const auto &u : units) {
+    if (u->unit_type == UNIT_TYPEID::NEUTRAL_VESPENEGEYSER) {
+      float d = DistanceSquared2D(u->pos, start);
+      if (d < distance) {
+        distance = d;
+        target = u;
+      }
+    }
+  }
+  return target;
+}
+
 
 // helper funciton to determine how many of a cetain unit we have
 int BasicSc2Bot::CountUnits(UNIT_TYPEID unit_type) {

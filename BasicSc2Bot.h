@@ -34,6 +34,7 @@ private:
   void ManageFactory();
 
   const sc2::Unit *FindNearestMineralPatch(const sc2::Point2D &start);
+  const sc2::Unit *BasicSc2Bot::FindNearestVespene(const Point2D &start);
   void ForceSCVsToBuildAndHarvest();
 };
 
