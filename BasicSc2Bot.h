@@ -23,9 +23,20 @@ private:
   bool
   TryBuildStructure(sc2::ABILITY_ID ability_type_for_structure,
                     sc2::UNIT_TYPEID unit_type = sc2::UNIT_TYPEID::TERRAN_SCV);
+
   bool TryBuildSupplyDepot();
+  bool TryBuildBarracks();
+  bool TryBuildStarport();
+  bool TryBuildFactory();
+
+  void ManageBarracks();
+  void ManageStarport();
+  void ManageFactory();
+
+  sc2::Point2D GetBaseLocation();
+
   const sc2::Unit *FindNearestMineralPatch(const sc2::Point2D &start);
-  void TrainStarportUnits();
+  const sc2::Unit *FindNearestVespene(const sc2::Point2D &start);
   void ForceSCVsToBuildAndHarvest();
 };
 
