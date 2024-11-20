@@ -1,16 +1,14 @@
 #include "BasicSc2Bot.h"
-#include <iostream>
+using namespace sc2;
 
-void BasicSc2Bot::OnGameStart() { 
-    std::cout << "Test" << std::endl;
-    return; 
+void BasicSc2Bot::OnGameStart() { std::cout << "Go!" << std::endl; }
 
+void BasicSc2Bot::OnStep() {
+  ManageSupply();
+  ManageSCVs();
+  ManageTroopsAndBuildings();
 }
 
-<<<<<<< Updated upstream
-void BasicSc2Bot::OnStep() { 
-    return;
-=======
 // Will run every time a unit is idle
 void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
   switch (unit->unit_type.ToType()) {
@@ -255,5 +253,4 @@ int BasicSc2Bot::CountUnits(UNIT_TYPEID unit_type) {
     }
   }
   return count;
->>>>>>> Stashed changes
 }
