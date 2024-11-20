@@ -10,8 +10,8 @@
 
 class BasicSc2Bot : public sc2::Agent {
 public:
-  virtual void OnGameStart();
-  virtual void OnStep();
+	virtual void OnGameStart();
+	virtual void OnStep();
   virtual void OnUnitIdle(const sc2::Unit *unit);
 
 private:
@@ -23,9 +23,18 @@ private:
   bool
   TryBuildStructure(sc2::ABILITY_ID ability_type_for_structure,
                     sc2::UNIT_TYPEID unit_type = sc2::UNIT_TYPEID::TERRAN_SCV);
+
   bool TryBuildSupplyDepot();
+  bool TryBuildBarracks();
+  bool TryBuildStarport();
+  bool TryBuildFactory();
+
+  void ManageBarracks();
+  void ManageStarport();
+  void ManageFactory();
+
   const sc2::Unit *FindNearestMineralPatch(const sc2::Point2D &start);
-  void TrainStarportUnits();
+  const sc2::Unit *BasicSc2Bot::FindNearestVespene(const Point2D &start);
   void ForceSCVsToBuildAndHarvest();
 };
 
