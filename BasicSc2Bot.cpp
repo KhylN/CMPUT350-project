@@ -210,7 +210,7 @@ bool BasicSc2Bot::TryBuildStarport() {
 
 bool BasicSc2Bot::TryBuildFactory() {
   // Build Factory if we have built the 30 Marines.
-  if (CountUnits(UNIT_TYPEID::TERRAN_MARINE) >= 30) {
+  if (CountUnits(UNIT_TYPEID::TERRAN_MARINE) >= 20) {
     if (CountUnits(UNIT_TYPEID::TERRAN_FACTORY) < 1) {
       return TryBuildStructure(ABILITY_ID::BUILD_FACTORY,
                                UNIT_TYPEID::TERRAN_SCV);
