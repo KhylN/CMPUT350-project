@@ -230,7 +230,7 @@ void BasicSc2Bot::ManageFactory() {
           factory->orders.empty()) {
         // Produce Hellions if fewer than 5 exist
         Actions()->UnitCommand(factory, ABILITY_ID::TRAIN_HELLION);
-      } else if (CountUnits(UNIT_TYPEID::TERRAN_SIEGETANK) < 20 &&
+      } else if (CountUnits(UNIT_TYPEID::VIKING) >= 5 &&
                  factory->orders.empty()) {
         // After producing Hellions, produce Siege Tanks if fewer than 20 exist
         Actions()->UnitCommand(factory, ABILITY_ID::TRAIN_SIEGETANK);
@@ -265,7 +265,7 @@ void BasicSc2Bot::ManageStarport() {
   1) Starport MUST have Tech Lab to make a Banshee
     - If a Starport does not have Tech Lab, we order it to build one.
   2) Eligible Starports will train Banshees
-  3) Eligible Starports will train 3 Medivac and then 10 Banshees are created.
+  3) Eligible Starports will train 3 Medivac and then 5 Vikings are created.
   */
 
   Units starports = Observation()->GetUnits(
@@ -279,15 +279,16 @@ void BasicSc2Bot::ManageStarport() {
     } else if (add_on &&
                add_on->unit_type == UNIT_TYPEID::TERRAN_STARPORTTECHLAB &&
                starport->orders.empty()) {
-      // If the Starport has the Tech Lab add-on and it is idle, order BANSHEE
-      // creation IFF we have fewer than 10 and greater than 5 Siege Tanks.
-      if (CountUnits(UNIT_TYPEID::TERRAN_BANSHEE) < 10 &&
-          CountUnits(UNIT_TYPEID::TERRAN_SIEGETANK) >= 5) {
-        Actions()->UnitCommand(starport, ABILITY_ID::TRAIN_BANSHEE);
+      // If the Starport has the Tech Lab add-on and it is idle, order VIKING
+      // creation IFF we have fewer than 5 Vikings
+      if (CountUnits(UNIT_TYPEID::TERRAN_VIKINGFIGHTER) < 5) {
+        Actions()->UnitCommand(starport, ABILITY_ID::TRAIN_VIKINGFIGHTER);
       }
-      if (CountUnits(UNIT_TYPEID::TERRAN_MEDIVAC) < 3 &&
+      // only make medivacs if there are 5 vikings
+      if (CountUnits(UNIT_TYPEID::TERRAN_VIKINGFIGHTER) >= 5 &&
+          CountUnits(UNIT_TYPEID::TERRAN_MEDIVAC) < 3 &&
           starport->orders.empty()) {
-        // If the Starport is still idle, then we have maxed Banshee and Tanks.
+        // If the Starport is still idle, then we have maxed VIKING and Tanks.
         // Attempt to train Medivac (if not maxed.)
         Actions()->UnitCommand(starport, ABILITY_ID::TRAIN_MEDIVAC);
       }
@@ -304,12 +305,12 @@ void BasicSc2Bot::ManageStarport() {
     }
   }
 
-  // patrol command for banshees
-  Units banshees = Observation()->GetUnits(Unit::Alliance::Self,
-                                           IsUnit(UNIT_TYPEID::TERRAN_BANSHEE));
-  for (const auto &banshee : banshees) {
-    if (banshee->orders.empty()) {
-      Actions()->UnitCommand(banshee, ABILITY_ID::GENERAL_PATROL,
+  // patrol command for vikings
+  Units vikings = Observation()->GetUnits(
+      Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_VIKINGFIGHTER));
+  for (const auto &viking : vikings) {
+    if (viking->orders.empty()) {
+      Actions()->UnitCommand(viking, ABILITY_ID::GENERAL_PATROL,
                              GetBaseLocation());
     }
   }
