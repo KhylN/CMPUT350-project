@@ -195,6 +195,16 @@ void BasicSc2Bot::ManageBarracks() {
       }
     }
   }
+
+  // patrol command fro marines
+  Units marines = Observation()->GetUnits(Unit::Alliance::Self,
+                                          IsUnit(UNIT_TYPEID::TERRAN_MARINE));
+  for (const auto &marine : marines) {
+    if (marine->orders.empty()) { // If marine is idle
+      Actions()->UnitCommand(marine, ABILITY_ID::GENERAL_PATROL,
+                             GetBaseLocation());
+    }
+  }
 }
 
 void BasicSc2Bot::ManageFactory() {
@@ -215,7 +225,7 @@ void BasicSc2Bot::ManageFactory() {
       Actions()->UnitCommand(factory, ABILITY_ID::BUILD_TECHLAB);
     } else if (add_on &&
                add_on->unit_type == UNIT_TYPEID::TERRAN_FACTORYTECHLAB) {
-      // If Factory has a Tech Lab, determine production priorities
+      // If Factory has a Tech Lab, order it to produce Hellions and Siege Tanks
       if (CountUnits(UNIT_TYPEID::TERRAN_HELLION) < 5 &&
           factory->orders.empty()) {
         // Produce Hellions if fewer than 5 exist
@@ -227,6 +237,26 @@ void BasicSc2Bot::ManageFactory() {
       }
     }
   }
+
+  // patrol command for hellions
+  Units hellions = Observation()->GetUnits(Unit::Alliance::Self,
+                                           IsUnit(UNIT_TYPEID::TERRAN_HELLION));
+  for (const auto &hellion : hellions) {
+    if (hellion->orders.empty()) { // If hellion is idle
+      Actions()->UnitCommand(hellion, ABILITY_ID::GENERAL_PATROL,
+                             GetBaseLocation());
+    }
+  }
+
+  // patrol command for siege tanks
+  Units siegeTanks = Observation()->GetUnits(
+      Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_SIEGETANK));
+  for (const auto &tank : siegeTanks) {
+    if (tank->orders.empty()) {
+      Actions()->UnitCommand(tank, ABILITY_ID::GENERAL_PATROL,
+                             GetBaseLocation());
+    }
+  }
 }
 
 void BasicSc2Bot::ManageStarport() {
@@ -235,7 +265,7 @@ void BasicSc2Bot::ManageStarport() {
   1) Starport MUST have Tech Lab to make a Banshee
     - If a Starport does not have Tech Lab, we order it to build one.
   2) Eligible Starports will train Banshees
-  3) Eligible Starports will train Medivac if 10 Banshees are already produced.
+  3) Eligible Starports will train 3 Medivac and then 10 Banshees are created.
   */
 
   Units starports = Observation()->GetUnits(
@@ -255,12 +285,32 @@ void BasicSc2Bot::ManageStarport() {
           CountUnits(UNIT_TYPEID::TERRAN_SIEGETANK) >= 5) {
         Actions()->UnitCommand(starport, ABILITY_ID::TRAIN_BANSHEE);
       }
-      if (CountUnits(UNIT_TYPEID::TERRAN_MEDIVAC) < 5 &&
+      if (CountUnits(UNIT_TYPEID::TERRAN_MEDIVAC) < 3 &&
           starport->orders.empty()) {
         // If the Starport is still idle, then we have maxed Banshee and Tanks.
         // Attempt to train Medivac (if not maxed.)
         Actions()->UnitCommand(starport, ABILITY_ID::TRAIN_MEDIVAC);
       }
+    }
+  }
+
+  // patrol command for medivacs
+  Units medivacs = Observation()->GetUnits(Unit::Alliance::Self,
+                                           IsUnit(UNIT_TYPEID::TERRAN_MEDIVAC));
+  for (const auto &medivac : medivacs) {
+    if (medivac->orders.empty()) { // If medivac is idle
+      Actions()->UnitCommand(medivac, ABILITY_ID::GENERAL_PATROL,
+                             GetBaseLocation());
+    }
+  }
+
+  // patrol command for banshees
+  Units banshees = Observation()->GetUnits(Unit::Alliance::Self,
+                                           IsUnit(UNIT_TYPEID::TERRAN_BANSHEE));
+  for (const auto &banshee : banshees) {
+    if (banshee->orders.empty()) {
+      Actions()->UnitCommand(banshee, ABILITY_ID::GENERAL_PATROL,
+                             GetBaseLocation());
     }
   }
 }
@@ -308,4 +358,15 @@ int BasicSc2Bot::CountUnits(UNIT_TYPEID unit_type) {
     }
   }
   return count;
+}
+
+// Function to get the location fo the commance center
+Point2D BasicSc2Bot::GetBaseLocation() {
+  const ObservationInterface *observation = Observation();
+  const Unit *command_center =
+      observation
+          ->GetUnits(Unit::Alliance::Self,
+                     IsUnit(UNIT_TYPEID::TERRAN_COMMANDCENTER))
+          .front();
+  return command_center->pos;
 }

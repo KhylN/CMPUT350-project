@@ -33,6 +33,8 @@ private:
   void ManageStarport();
   void ManageFactory();
 
+  sc2::Point2D GetBaseLocation();
+
   const sc2::Unit *FindNearestMineralPatch(const sc2::Point2D &start);
   const sc2::Unit *FindNearestVespene(const sc2::Point2D &start);
   void ForceSCVsToBuildAndHarvest();
