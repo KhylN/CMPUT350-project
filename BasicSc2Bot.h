@@ -13,6 +13,30 @@ public:
 	virtual void OnStep();
 
 private:
+<<<<<<< Updated upstream
+=======
+  void ManageSupply();
+  void ManageSCVs();
+  void ManageTroopsAndBuildings();
+  int CountUnits(sc2::UNIT_TYPEID unit_type);
+
+  bool
+  TryBuildStructure(sc2::ABILITY_ID ability_type_for_structure,
+                    sc2::UNIT_TYPEID unit_type = sc2::UNIT_TYPEID::TERRAN_SCV);
+
+  bool TryBuildSupplyDepot();
+  bool TryBuildBarracks();
+  bool TryBuildStarport();
+  bool TryBuildFactory();
+
+  void ManageBarracks();
+  void ManageStarport();
+  void ManageFactory();
+
+  const sc2::Unit *FindNearestMineralPatch(const sc2::Point2D &start);
+  void TrainStarportUnits();
+  void ForceSCVsToBuildAndHarvest();
+>>>>>>> Stashed changes
 };
 
 #endif
