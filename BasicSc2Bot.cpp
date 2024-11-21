@@ -7,6 +7,8 @@ void BasicSc2Bot::OnStep() {
   ManageSupply();
   ManageSCVs();
   ManageTroopsAndBuildings();
+
+  // TODO: Expanded Logic for Posture II
 }
 
 // Will run every time a unit is idle
@@ -142,11 +144,15 @@ void BasicSc2Bot::ManageTroopsAndBuildings() {
   TryBuildFactory();
   ManageFactory();
 
-  ManageAllTroops();
+  int str = MilitaryStrength();
+  if (MilitaryStrength() > THRESH) {
+    // Call Attack Handler
 
-  // TODO: implement building medivacs later, seem to be useful cause they can
-  // heal "biological troops"
-  // https://liquipedia.net/starcraft2/Medivac_(Legacy_of_the_Void)
+    // Case 1: We know enemy base, order all units to attack.
+    // Case 2: We do not know enemy base, so manage all troops as normal.
+  } else {
+    ManageAllTroops();
+  }
 }
 
 void BasicSc2Bot::ManageSupply() { TryBuildSupplyDepot(); }
@@ -227,6 +233,9 @@ void BasicSc2Bot::ManageAllTroops() {
   // patrol command for Marines
   Units marines = Observation()->GetUnits(Unit::Alliance::Self,
                                           IsUnit(UNIT_TYPEID::TERRAN_MARINE));
+  
+  // PUT SCOUTING HERE
+  
   for (const auto &marine : marines) {
     if (marine->orders.empty()) { // If marine is idle
       Actions()->UnitCommand(marine, ABILITY_ID::GENERAL_PATROL,
@@ -408,6 +417,29 @@ int BasicSc2Bot::CountUnits(UNIT_TYPEID unit_type) {
     }
   }
   return count;
+}
+
+// Finds Military Strength value
+int BasicSc2Bot::MilitaryStrength(){
+  int result = 0;
+  for (int i = 0; i <= 5; i++){
+    if(i == 1){
+      result += CountUnits(UNIT_TYPEID::TERRAN_MARINE);
+    }
+    else if(i == 2){
+      result += CountUnits(UNIT_TYPEID::TERRAN_HELLION);
+    }
+    else if(i == 3){
+      result += CountUnits(UNIT_TYPEID::TERRAN_VIKINGFIGHTER);
+    }
+    else if(i == 4){
+      result += CountUnits(UNIT_TYPEID::TERRAN_MEDIVAC);
+    }
+    else{
+      result += CountUnits(UNIT_TYPEID::TERRAN_SIEGETANK);
+    }
+  }
+  return double(result/5);
 }
 
 // Function to get the location fo the commance center
