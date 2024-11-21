@@ -19,6 +19,7 @@ private:
   void ManageSCVs();
   void ManageTroopsAndBuildings();
   int CountUnits(sc2::UNIT_TYPEID unit_type);
+  int MilitaryStrength();
 
   bool
   TryBuildStructure(sc2::ABILITY_ID ability_type_for_structure,
@@ -28,6 +29,13 @@ private:
   bool TryBuildBarracks();
   bool TryBuildStarport();
   bool TryBuildFactory();
+
+  // make macroes for marines, hellions, vikings, medivacs, seigetanks
+  const int MARINE = 10;
+  const int HELLIONS = 20;
+  const int VIKINGS = 30;
+  const int MEDIVACS = 40;
+  const int SEIGETANKS = 50;
 
   void ManageBarracks();
   void ManageStarport();
