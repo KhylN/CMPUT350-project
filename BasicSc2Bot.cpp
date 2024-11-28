@@ -424,19 +424,19 @@ int BasicSc2Bot::MilitaryStrength(){
   int result = 0;
   for (int i = 0; i <= 5; i++){
     if(i == 1){
-      result += CountUnits(UNIT_TYPEID::TERRAN_MARINE);
+      result += CountUnits(UNIT_TYPEID::TERRAN_MARINE) * MARINE;
     }
     else if(i == 2){
-      result += CountUnits(UNIT_TYPEID::TERRAN_HELLION);
+      result += CountUnits(UNIT_TYPEID::TERRAN_HELLION) * HELLIONS;
     }
     else if(i == 3){
-      result += CountUnits(UNIT_TYPEID::TERRAN_VIKINGFIGHTER);
+      result += CountUnits(UNIT_TYPEID::TERRAN_VIKINGFIGHTER) * VIKINGS;
     }
     else if(i == 4){
-      result += CountUnits(UNIT_TYPEID::TERRAN_MEDIVAC);
+      result += CountUnits(UNIT_TYPEID::TERRAN_MEDIVAC) * MEDIVACS;
     }
     else{
-      result += CountUnits(UNIT_TYPEID::TERRAN_SIEGETANK);
+      result += CountUnits(UNIT_TYPEID::TERRAN_SIEGETANK) * SEIGETANKS;
     }
   }
   return double(result/5);
