@@ -7,6 +7,8 @@ void BasicSc2Bot::OnStep() {
   ManageSupply();
   ManageSCVs();
   ManageTroopsAndBuildings();
+
+  // TODO: Expanded Logic for Posture II
 }
 
 // Will run every time a unit is idle
@@ -36,7 +38,7 @@ void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
     */
   }
   case UNIT_TYPEID::TERRAN_BARRACKS: {
-    if (CountUnits(UNIT_TYPEID::TERRAN_MARINE) < 30) {
+    if (CountUnits(UNIT_TYPEID::TERRAN_MARINE) < 20) {
       Actions()->UnitCommand(unit, ABILITY_ID::TRAIN_MARINE);
     }
     break;
@@ -142,9 +144,15 @@ void BasicSc2Bot::ManageTroopsAndBuildings() {
   TryBuildFactory();
   ManageFactory();
 
-  // TODO: implement building medivacs later, seem to be useful cause they can
-  // heal "biological troops"
-  // https://liquipedia.net/starcraft2/Medivac_(Legacy_of_the_Void)
+  int str = MilitaryStrength();
+  if (MilitaryStrength() > THRESH) {
+    // Call Attack Handler
+
+    // Case 1: We know enemy base, order all units to attack.
+    // Case 2: We do not know enemy base, so manage all troops as normal.
+  } else {
+    ManageAllTroops();
+  }
 }
 
 void BasicSc2Bot::ManageSupply() { TryBuildSupplyDepot(); }
@@ -209,7 +217,7 @@ bool BasicSc2Bot::TryBuildStarport() {
 }
 
 bool BasicSc2Bot::TryBuildFactory() {
-  // Build Factory if we have built the 30 Marines.
+  // Build Factory if we have built the 20 Marines.
   if (CountUnits(UNIT_TYPEID::TERRAN_MARINE) >= 20) {
     if (CountUnits(UNIT_TYPEID::TERRAN_FACTORY) < 1) {
       return TryBuildStructure(ABILITY_ID::BUILD_FACTORY,
@@ -219,11 +227,68 @@ bool BasicSc2Bot::TryBuildFactory() {
   return false;
 }
 
+// TROOP MANAGEMENT
+
+void BasicSc2Bot::ManageAllTroops() {
+  // patrol command for Marines
+  Units marines = Observation()->GetUnits(Unit::Alliance::Self,
+                                          IsUnit(UNIT_TYPEID::TERRAN_MARINE));
+  
+  // PUT SCOUTING HERE
+  
+  for (const auto &marine : marines) {
+    if (marine->orders.empty()) { // If marine is idle
+      Actions()->UnitCommand(marine, ABILITY_ID::GENERAL_PATROL,
+                             GetBaseLocation());
+    }
+  }
+
+  // patrol command for Hellions
+  Units hellions = Observation()->GetUnits(Unit::Alliance::Self,
+                                           IsUnit(UNIT_TYPEID::TERRAN_HELLION));
+  for (const auto &hellion : hellions) {
+    if (hellion->orders.empty()) { // If hellion is idle
+      Actions()->UnitCommand(hellion, ABILITY_ID::GENERAL_PATROL,
+                             GetBaseLocation());
+    }
+  }
+
+  // patrol command for Siege Tanks
+  Units siegeTanks = Observation()->GetUnits(
+      Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_SIEGETANK));
+  for (const auto &tank : siegeTanks) {
+    if (tank->orders.empty()) {
+      Actions()->UnitCommand(tank, ABILITY_ID::GENERAL_PATROL,
+                             GetBaseLocation());
+    }
+  }
+
+  // patrol command for Medivacs
+  Units medivacs = Observation()->GetUnits(Unit::Alliance::Self,
+                                           IsUnit(UNIT_TYPEID::TERRAN_MEDIVAC));
+  for (const auto &medivac : medivacs) {
+    if (medivac->orders.empty()) { // If medivac is idle
+      Actions()->UnitCommand(medivac, ABILITY_ID::GENERAL_PATROL,
+                             GetBaseLocation());
+    }
+  }
+
+  // patrol command for Vikings
+  Units vikings = Observation()->GetUnits(
+      Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_VIKINGFIGHTER));
+  for (const auto &viking : vikings) {
+    if (viking->orders.empty()) {
+      Actions()->UnitCommand(viking, ABILITY_ID::GENERAL_PATROL,
+                             GetBaseLocation());
+    }
+  }
+}
+
 // MODULAR UNIT TRAINING FUNCTIONS
 
 void BasicSc2Bot::ManageBarracks() {
-  // If we have fewer than 30 Marines, attempt to train Barracks.
-  if (CountUnits(UNIT_TYPEID::TERRAN_MARINE) < 30) {
+  // If we have fewer than 20 Marines, attempt to train Barracks.
+  if (CountUnits(UNIT_TYPEID::TERRAN_MARINE) < 20) {
     Units barracks = Observation()->GetUnits(
         Unit::Alliance::Self,
         IsUnit(UNIT_TYPEID::TERRAN_BARRACKS)); // Get list of all barracks on
@@ -235,16 +300,6 @@ void BasicSc2Bot::ManageBarracks() {
             ABILITY_ID::TRAIN_MARINE); // Order barracks to train Marine if no
                                        // orders given yet.
       }
-    }
-  }
-
-  // patrol command fro marines
-  Units marines = Observation()->GetUnits(Unit::Alliance::Self,
-                                          IsUnit(UNIT_TYPEID::TERRAN_MARINE));
-  for (const auto &marine : marines) {
-    if (marine->orders.empty()) { // If marine is idle
-      Actions()->UnitCommand(marine, ABILITY_ID::GENERAL_PATROL,
-                             GetBaseLocation());
     }
   }
 }
@@ -278,26 +333,6 @@ void BasicSc2Bot::ManageFactory() {
         // After producing Hellions, produce Siege Tanks if fewer than 7 exist
         Actions()->UnitCommand(factory, ABILITY_ID::TRAIN_SIEGETANK);
       }
-    }
-  }
-
-  // patrol command for hellions
-  Units hellions = Observation()->GetUnits(Unit::Alliance::Self,
-                                           IsUnit(UNIT_TYPEID::TERRAN_HELLION));
-  for (const auto &hellion : hellions) {
-    if (hellion->orders.empty()) { // If hellion is idle
-      Actions()->UnitCommand(hellion, ABILITY_ID::GENERAL_PATROL,
-                             GetBaseLocation());
-    }
-  }
-
-  // patrol command for siege tanks
-  Units siegeTanks = Observation()->GetUnits(
-      Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_SIEGETANK));
-  for (const auto &tank : siegeTanks) {
-    if (tank->orders.empty()) {
-      Actions()->UnitCommand(tank, ABILITY_ID::GENERAL_PATROL,
-                             GetBaseLocation());
     }
   }
 }
@@ -335,26 +370,6 @@ void BasicSc2Bot::ManageStarport() {
         // Attempt to train Medivac (if not maxed.)
         Actions()->UnitCommand(starport, ABILITY_ID::TRAIN_MEDIVAC);
       }
-    }
-  }
-
-  // patrol command for medivacs
-  Units medivacs = Observation()->GetUnits(Unit::Alliance::Self,
-                                           IsUnit(UNIT_TYPEID::TERRAN_MEDIVAC));
-  for (const auto &medivac : medivacs) {
-    if (medivac->orders.empty()) { // If medivac is idle
-      Actions()->UnitCommand(medivac, ABILITY_ID::GENERAL_PATROL,
-                             GetBaseLocation());
-    }
-  }
-
-  // patrol command for vikings
-  Units vikings = Observation()->GetUnits(
-      Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_VIKINGFIGHTER));
-  for (const auto &viking : vikings) {
-    if (viking->orders.empty()) {
-      Actions()->UnitCommand(viking, ABILITY_ID::GENERAL_PATROL,
-                             GetBaseLocation());
     }
   }
 }
@@ -402,6 +417,29 @@ int BasicSc2Bot::CountUnits(UNIT_TYPEID unit_type) {
     }
   }
   return count;
+}
+
+// Finds Military Strength value
+int BasicSc2Bot::MilitaryStrength(){
+  int result = 0;
+  for (int i = 0; i <= 5; i++){
+    if(i == 1){
+      result += CountUnits(UNIT_TYPEID::TERRAN_MARINE);
+    }
+    else if(i == 2){
+      result += CountUnits(UNIT_TYPEID::TERRAN_HELLION);
+    }
+    else if(i == 3){
+      result += CountUnits(UNIT_TYPEID::TERRAN_VIKINGFIGHTER);
+    }
+    else if(i == 4){
+      result += CountUnits(UNIT_TYPEID::TERRAN_MEDIVAC);
+    }
+    else{
+      result += CountUnits(UNIT_TYPEID::TERRAN_SIEGETANK);
+    }
+  }
+  return double(result/5);
 }
 
 // Function to get the location fo the commance center

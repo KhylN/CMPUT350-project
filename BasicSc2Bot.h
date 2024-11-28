@@ -19,6 +19,7 @@ private:
   void ManageSCVs();
   void ManageTroopsAndBuildings();
   int CountUnits(sc2::UNIT_TYPEID unit_type);
+  int MilitaryStrength();
 
   bool
   TryBuildStructure(sc2::ABILITY_ID ability_type_for_structure,
@@ -32,6 +33,8 @@ private:
   void ManageBarracks();
   void ManageStarport();
   void ManageFactory();
+
+  void ManageAllTroops();
 
   sc2::Point2D GetBaseLocation();
 
