@@ -233,9 +233,9 @@ void BasicSc2Bot::ManageAllTroops() {
   // patrol command for Marines
   Units marines = Observation()->GetUnits(Unit::Alliance::Self,
                                           IsUnit(UNIT_TYPEID::TERRAN_MARINE));
-  
+
   // PUT SCOUTING HERE
-  
+
   for (const auto &marine : marines) {
     if (marine->orders.empty()) { // If marine is idle
       Actions()->UnitCommand(marine, ABILITY_ID::GENERAL_PATROL,
@@ -420,26 +420,22 @@ int BasicSc2Bot::CountUnits(UNIT_TYPEID unit_type) {
 }
 
 // Finds Military Strength value
-int BasicSc2Bot::MilitaryStrength(){
+int BasicSc2Bot::MilitaryStrength() {
   int result = 0;
-  for (int i = 0; i <= 5; i++){
-    if(i == 1){
-      result += CountUnits(UNIT_TYPEID::TERRAN_MARINE) * MARINE;
-    }
-    else if(i == 2){
-      result += CountUnits(UNIT_TYPEID::TERRAN_HELLION) * HELLIONS;
-    }
-    else if(i == 3){
-      result += CountUnits(UNIT_TYPEID::TERRAN_VIKINGFIGHTER) * VIKINGS;
-    }
-    else if(i == 4){
-      result += CountUnits(UNIT_TYPEID::TERRAN_MEDIVAC) * MEDIVACS;
-    }
-    else{
-      result += CountUnits(UNIT_TYPEID::TERRAN_SIEGETANK) * SEIGETANKS;
+  for (int i = 0; i <= 5; i++) {
+    if (i == 1) {
+      result += CountUnits(UNIT_TYPEID::TERRAN_MARINE);
+    } else if (i == 2) {
+      result += CountUnits(UNIT_TYPEID::TERRAN_HELLION);
+    } else if (i == 3) {
+      result += CountUnits(UNIT_TYPEID::TERRAN_VIKINGFIGHTER);
+    } else if (i == 4) {
+      result += CountUnits(UNIT_TYPEID::TERRAN_MEDIVAC);
+    } else {
+      result += CountUnits(UNIT_TYPEID::TERRAN_SIEGETANK);
     }
   }
-  return double(result/5);
+  return double(result / 5);
 }
 
 // Function to get the location fo the commance center

@@ -15,6 +15,14 @@ public:
   virtual void OnUnitIdle(const sc2::Unit *unit);
 
 private:
+  // make macroes for marines, hellions, vikings, medivacs, seigetanks
+  const int THRESH = 200;
+  const int MARINE = 10;
+  const int HELLIONS = 20;
+  const int VIKINGS = 30;
+  const int MEDIVACS = 40;
+  const int SEIGETANKS = 50;
+
   void ManageSupply();
   void ManageSCVs();
   void ManageTroopsAndBuildings();
