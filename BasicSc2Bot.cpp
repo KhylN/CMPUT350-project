@@ -554,14 +554,14 @@ void BasicSc2Bot::ManageFactory() {
       // If Factory has a Tech Lab, order it to produce Hellions and Siege
       // Tanks
 
-      if (CountUnits(UNIT_TYPEID::TERRAN_HELLION) > 5 &&
-          CountUnits(UNIT_TYPEID::TERRAN_SIEGETANK) < 5 &&
+      if (CountUnits(UNIT_TYPEID::TERRAN_SIEGETANK) > 5 &&
+          CountUnits(UNIT_TYPEID::TERRAN_HELLION) < 5 &&
           factory->orders.empty()) {
-        // Produce Siege Tanks if fewer than 5 exist
-        Actions()->UnitCommand(factory, ABILITY_ID::TRAIN_SIEGETANK);
-      } else {
         // Produce Hellions if fewer than 5 exist
         Actions()->UnitCommand(factory, ABILITY_ID::TRAIN_HELLION);
+      } else {
+        // Produce Siege Tanks if fewer than 5 exist
+        Actions()->UnitCommand(factory, ABILITY_ID::TRAIN_SIEGETANK);
       }
     }
   }
