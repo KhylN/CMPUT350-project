@@ -16,7 +16,7 @@ public:
 
 private:
   // make macroes for marines, hellions, vikings, medivacs, seigetanks
-  const int THRESH = 200;
+  const int THRESH = 30;
   const int MARINE = 10;
   const int HELLIONS = 20;
   const int VIKINGS = 30;
@@ -49,6 +49,20 @@ private:
   const sc2::Unit *FindNearestMineralPatch(const sc2::Point2D &start);
   const sc2::Unit *FindNearestVespene(const sc2::Point2D &start);
   void ForceSCVsToBuildAndHarvest();
+
+  std::vector<sc2::Point2D> potential_enemy_locations_;
+  size_t current_attack_wave_ = 1;
+
+  void InitializeEnemyLocations();
+  void LaunchAttack();
+  bool IsArmyIdle();
+  void SendArmyTo(const sc2::Point2D &target);
+
+  sc2::Tag scout_marine_id = 0; // 0 means no scout assigned yet
+  size_t current_target_index =
+      0; // Index of the current enemy start position to scout
+  sc2::Point2D enemy_base_location; // Enemy base location when identified
+  bool scout_died = false;          // Flag to indicate if the scout has died
 };
 
 #endif
