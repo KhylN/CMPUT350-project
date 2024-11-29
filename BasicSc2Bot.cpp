@@ -183,10 +183,30 @@ bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure,
   float rx = GetRandomScalar();
   float ry = GetRandomScalar();
   float build_radius = 10.0f;
-  Actions()->UnitCommand(unit_to_build, ability_type_for_structure,
-                         Point2D(unit_to_build->pos.x + rx * build_radius,
-                                 unit_to_build->pos.y + ry * build_radius));
-  return true;
+
+  // if ability_type_for_structure is a factory/starport, we need to build it in
+  // a location that will allow for a tech lab
+  if (ability_type_for_structure == ABILITY_ID::BUILD_FACTORY ||
+      ability_type_for_structure == ABILITY_ID::BUILD_STARPORT) {
+    // verify a tech lab can be built by checking if there is a radius of 5
+    // around the build location if there is a tech lab, we can build the
+    // structure
+    if (Query()->Placement(ability_type_for_structure,
+                           Point2D(unit_to_build->pos.x + rx * build_radius,
+                                   unit_to_build->pos.y + ry * build_radius))) {
+      Actions()->UnitCommand(unit_to_build, ability_type_for_structure,
+                             Point2D(unit_to_build->pos.x + rx * build_radius,
+                                     unit_to_build->pos.y + ry * build_radius));
+      return true;
+    } else {
+      return false;
+    }
+  } else {
+    Actions()->UnitCommand(unit_to_build, ability_type_for_structure,
+                           Point2D(unit_to_build->pos.x + rx * build_radius,
+                                   unit_to_build->pos.y + ry * build_radius));
+    return true;
+  }
 }
 
 // MODULAR BUILDING HELPER FUNCTIONS
@@ -218,7 +238,7 @@ bool BasicSc2Bot::TryBuildStarport() {
 
 bool BasicSc2Bot::TryBuildFactory() {
   // Build Factory if we have built the 20 Marines.
-  if (CountUnits(UNIT_TYPEID::TERRAN_MARINE) >= 20) {
+  if (CountUnits(UNIT_TYPEID::TERRAN_MARINE) >= 5) {
     if (CountUnits(UNIT_TYPEID::TERRAN_FACTORY) < 1) {
       return TryBuildStructure(ABILITY_ID::BUILD_FACTORY,
                                UNIT_TYPEID::TERRAN_SCV);
