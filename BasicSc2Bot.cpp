@@ -21,7 +21,6 @@ void BasicSc2Bot::OnGameStart() {
 }
 
 void BasicSc2Bot::OnStep() {
-  ManageSupply();
   ManageSCVs();
   ManageTroopsAndBuildings();
 
@@ -226,6 +225,7 @@ void BasicSc2Bot::ForceSCVsToBuildAndHarvest() {
 }
 
 void BasicSc2Bot::ManageTroopsAndBuildings() {
+  TryBuildSupplyDepot();
   TryBuildBarracks();
   ManageBarracks();
 
@@ -364,58 +364,75 @@ void BasicSc2Bot::SendArmyTo(const sc2::Point2D &target) {
   }
 }
 
-void BasicSc2Bot::ManageSupply() { TryBuildSupplyDepot(); }
-
 // Attempts to build specified structures - from tutorial
-bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure,
-                                    UNIT_TYPEID unit_type) {
-  const ObservationInterface *observation = Observation();
-  const Unit *unit_to_build = nullptr;
-  Units units = observation->GetUnits(Unit::Alliance::Self);
+// Attempts to build specified structures - from tutorial
+bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure, UNIT_TYPEID unit_type) {
+    const ObservationInterface *observation = Observation();
+    
+    // Find an available builder unit of the specified type
+    const Unit *unit_to_build = nullptr;
+    Units units = observation->GetUnits(Unit::Alliance::Self);
+    for (const auto &unit : units) {
 
-  // for each loop, https://www.w3schools.com/cpp/cpp_for_loop_foreach.asp,
-  // very useful
-  for (const auto &unit : units) {
     for (const auto &order : unit->orders) {
       if (order.ability_id == ability_type_for_structure) {
         return false;
       }
     }
-    if (unit->unit_type == unit_type) {
+    if (unit->unit_type == unit_type && !unit->orders.empty()) {
       unit_to_build = unit;
     }
   }
   if (!unit_to_build) {
     return false;
   }
+    // Find a valid build location near the base
+    Point2D base_location = GetBaseLocation();
+    Point2D build_location = FindBuildLocation(base_location, ability_type_for_structure);
 
-  float rx = GetRandomScalar();
-  float ry = GetRandomScalar();
-  float build_radius = 12.0f;
-
-  // if ability_type_for_structure is a factory/starport, we need to build it
-  // in a location that will allow for a tech lab
-  if (ability_type_for_structure == ABILITY_ID::BUILD_FACTORY ||
-      ability_type_for_structure == ABILITY_ID::BUILD_STARPORT) {
-    // verify a tech lab can be built by checking if there is a radius of 5
-    // around the build location if there is a tech lab, we can build the
-    // structure
-    if (Query()->Placement(ability_type_for_structure,
-                           Point2D(unit_to_build->pos.x + rx * build_radius,
-                                   unit_to_build->pos.y + ry * build_radius))) {
-      Actions()->UnitCommand(unit_to_build, ability_type_for_structure,
-                             Point2D(unit_to_build->pos.x + rx * build_radius,
-                                     unit_to_build->pos.y + ry * build_radius));
-      return true;
+    if (build_location == Point2D()) { // Check if FindBuildLocation returned a valid location
+        std::cerr << "No valid build location found for structure: " << static_cast<int>(ability_type_for_structure) << std::endl;
+        return false;
     } else {
-      return false;
+        std::cout << "Build location found at: (" << build_location.x << ", " << build_location.y << ")" << std::endl;
     }
-  } else {
-    Actions()->UnitCommand(unit_to_build, ability_type_for_structure,
-                           Point2D(unit_to_build->pos.x + rx * build_radius,
-                                   unit_to_build->pos.y + ry * build_radius));
+
+    // Check resources
+
+    // Issue the build command
+    Actions()->UnitCommand(unit_to_build, ability_type_for_structure, build_location);
+    std::cout << "Issued build command to unit: " << unit_to_build->tag 
+              << " for structure: " << static_cast<int>(ability_type_for_structure) 
+              << " at location: (" << build_location.x << ", " << build_location.y << ")" << std::endl;
+
     return true;
-  }
+}
+
+
+Point2D BasicSc2Bot::FindBuildLocation(Point2D base_location, ABILITY_ID ability_type) {
+    const ObservationInterface *observation = Observation(); // Ensure we use the observation interface
+    //QueryInterface *query = Actions()->GetQueryInterface(); // Explicitly get the query interface
+    
+    float build_radius = 12.0f;
+
+    for (float dx = -build_radius; dx <= build_radius; dx += 2.0f) {
+        for (float dy = -build_radius; dy <= build_radius; dy += 2.0f) {
+            Point2D current_location = Point2D(base_location.x + dx, base_location.y + dy);
+
+            // Use query->Placement() instead of Query()->Placement() if needed
+            if (Query()->Placement(ability_type, current_location)) {
+                // Ensure sufficient space for tech lab if necessary
+                if (ability_type == ABILITY_ID::BUILD_FACTORY || ability_type == ABILITY_ID::BUILD_STARPORT) {
+                    if (Query()->Placement(ability_type, Point2D(current_location.x + 3.0f, current_location.y))) {
+                        return current_location;
+                    }
+                } else {
+                    return current_location;
+                }
+            }
+        }
+    }
+    return Point2D(); // Return a default empty point if no location is found
 }
 
 // MODULAR BUILDING HELPER FUNCTIONS
@@ -423,6 +440,8 @@ bool BasicSc2Bot::TryBuildSupplyDepot() {
   const ObservationInterface *observation = Observation();
   if (observation->GetFoodUsed() <= observation->GetFoodCap() - 2)
     return false;
+
+  std::cout << "entered try build structure" << std::endl;
   return TryBuildStructure(ABILITY_ID::BUILD_SUPPLYDEPOT,
                            UNIT_TYPEID::TERRAN_SCV);
 }
@@ -554,14 +573,14 @@ void BasicSc2Bot::ManageFactory() {
       // If Factory has a Tech Lab, order it to produce Hellions and Siege
       // Tanks
 
-      if (CountUnits(UNIT_TYPEID::TERRAN_HELLION) > 5 &&
-          CountUnits(UNIT_TYPEID::TERRAN_SIEGETANK) < 5 &&
+      if (CountUnits(UNIT_TYPEID::TERRAN_SIEGETANK) > 5 &&
+          CountUnits(UNIT_TYPEID::TERRAN_HELLION) < 5 &&
           factory->orders.empty()) {
-        // Produce Siege Tanks if fewer than 5 exist
-        Actions()->UnitCommand(factory, ABILITY_ID::TRAIN_SIEGETANK);
-      } else {
         // Produce Hellions if fewer than 5 exist
         Actions()->UnitCommand(factory, ABILITY_ID::TRAIN_HELLION);
+      } else {
+        // Produce Siege Tanks if fewer than 5 exist
+        Actions()->UnitCommand(factory, ABILITY_ID::TRAIN_SIEGETANK);
       }
     }
   }

@@ -66,10 +66,11 @@ private:
   void SendArmyTo(const sc2::Point2D &target);
 
   sc2::Tag scout_marine_id = 0; // 0 means no scout assigned yet
-  size_t current_target_index =
-      0; // Index of the current enemy start position to scout
+  size_t current_target_index = 0; // Index of the current enemy start position to scout
   sc2::Point2D enemy_base_location; // Enemy base location when identified
   bool scout_died = false;          // Flag to indicate if the scout has died
+  sc2::Point2D FindBuildLocation(sc2::Point2D base_location, sc2::ABILITY_ID ability_type);
+
 };
 
 #endif
