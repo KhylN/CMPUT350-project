@@ -404,7 +404,9 @@ Point2D FindBuildLocation(Point2D base_location, ABILITY_ID ability_type) {
       for (float dy = -build_radius; dy <= build_radius; dy += 2.0f) {
         Point2D current_location = Point2D(base_location.x + dx, base_location.y + dy);
         if (Query()->Placement(ability_type, current_location)) {
-          return current_location;
+          if (Query()->Placement(current_location.x + 3.0f, current_location.y)) {
+            return current_location;
+          }
         }
       }
     }
@@ -414,9 +416,7 @@ Point2D FindBuildLocation(Point2D base_location, ABILITY_ID ability_type) {
       for (float dy = -build_radius; dy <= build_radius; dy += 2.0f) {
         Point2D current_location = Point2D(base_location.x + dx, base_location.y + dy);
         if (Query()->Placement(ability_type, current_location)) {
-          if (Query()->Placement(current_location.x + 3.0f, current_location.y)) {
-            return current_location;
-          }
+          return current_location;
         }
       }
     }
