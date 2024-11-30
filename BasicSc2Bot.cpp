@@ -226,6 +226,7 @@ void BasicSc2Bot::ForceSCVsToBuildAndHarvest() {
 
 void BasicSc2Bot::ManageTroopsAndBuildings() {
   TryBuildSupplyDepot();
+  TryMorphSupplyDepot();
   TryBuildBarracks();
   ManageBarracks();
 
@@ -365,39 +366,61 @@ void BasicSc2Bot::SendArmyTo(const sc2::Point2D &target) {
 }
 
 // Attempts to build specified structures - from tutorial
-// Attempts to build specified structures - from tutorial
 bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure, UNIT_TYPEID unit_type) {
     const ObservationInterface *observation = Observation();
-    
+
     // Find an available builder unit of the specified type
     const Unit *unit_to_build = nullptr;
     Units units = observation->GetUnits(Unit::Alliance::Self);
     for (const auto &unit : units) {
+        bool unit_is_busy = false;
 
-    for (const auto &order : unit->orders) {
-      if (order.ability_id == ability_type_for_structure) {
+        // Check if unit is already assigned to a building task
+        for (const auto &order : unit->orders) {
+            if (order.ability_id == ability_type_for_structure) {
+                // If the unit is already building the requested structure, return early
+                return false;
+            }
+            if (order.ability_id == ABILITY_ID::BUILD_SUPPLYDEPOT || 
+                order.ability_id == ABILITY_ID::BUILD_BARRACKS) {
+                unit_is_busy = true;
+                break;
+            }
+        }
+
+        // Select an idle SCV that matches the required type
+        if (unit->unit_type == unit_type && !unit_is_busy) {
+            unit_to_build = unit;
+            break;
+        }
+    }
+
+    if (!unit_to_build) {
+        std::cerr << "No available builder unit found for structure: " 
+                  << static_cast<int>(ability_type_for_structure) << std::endl;
         return false;
-      }
     }
-    if (unit->unit_type == unit_type && !unit->orders.empty()) {
-      unit_to_build = unit;
-    }
-  }
-  if (!unit_to_build) {
-    return false;
-  }
+
     // Find a valid build location near the base
     Point2D base_location = GetBaseLocation();
     Point2D build_location = FindBuildLocation(base_location, ability_type_for_structure);
 
     if (build_location == Point2D()) { // Check if FindBuildLocation returned a valid location
-        std::cerr << "No valid build location found for structure: " << static_cast<int>(ability_type_for_structure) << std::endl;
+        std::cerr << "No valid build location found for structure: " 
+                  << static_cast<int>(ability_type_for_structure) << std::endl;
         return false;
     } else {
         std::cout << "Build location found at: (" << build_location.x << ", " << build_location.y << ")" << std::endl;
     }
 
-    // Check resources
+    // Check resources before issuing the build command
+    auto required_resources = observation->GetUnitTypeData().at(static_cast<uint32_t>(ability_type_for_structure));
+    if (observation->GetMinerals() < required_resources.mineral_cost || 
+        observation->GetVespene() < required_resources.vespene_cost) {
+        std::cerr << "Not enough resources to build structure: " 
+                  << static_cast<int>(ability_type_for_structure) << std::endl;
+        return false;
+    }
 
     // Issue the build command
     Actions()->UnitCommand(unit_to_build, ability_type_for_structure, build_location);
@@ -407,6 +430,9 @@ bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure, UNIT_
 
     return true;
 }
+
+
+
 
 
 Point2D BasicSc2Bot::FindBuildLocation(Point2D base_location, ABILITY_ID ability_type) {
@@ -444,6 +470,22 @@ bool BasicSc2Bot::TryBuildSupplyDepot() {
   std::cout << "entered try build structure" << std::endl;
   return TryBuildStructure(ABILITY_ID::BUILD_SUPPLYDEPOT,
                            UNIT_TYPEID::TERRAN_SCV);
+}
+// Lowers all non-lowered supply depots
+bool BasicSc2Bot::TryMorphSupplyDepot() {
+  const ObservationInterface *observation = Observation();
+  Units supply_depots = Observation()->GetUnits(
+      Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_SUPPLYDEPOT));
+  if (CountUnits(UNIT_TYPEID::TERRAN_SUPPLYDEPOT) > 0) {
+    // If there are eligible Supply Depots, attempt to lower them.
+    for (const auto *supply_depot : supply_depots) {
+      if (supply_depot->orders.empty()) { 
+        Actions()->UnitCommand(supply_depot, ABILITY_ID::MORPH_SUPPLYDEPOT_LOWER); // Lower all idle Supply Depots
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 bool BasicSc2Bot::TryBuildBarracks() {
