@@ -21,7 +21,6 @@ void BasicSc2Bot::OnGameStart() {
 }
 
 void BasicSc2Bot::OnStep() {
-  ManageSupply();
   ManageSCVs();
   ManageTroopsAndBuildings();
 
@@ -226,6 +225,7 @@ void BasicSc2Bot::ForceSCVsToBuildAndHarvest() {
 }
 
 void BasicSc2Bot::ManageTroopsAndBuildings() {
+  TryBuildSupplyDepot();
   TryBuildBarracks();
   ManageBarracks();
 
@@ -364,28 +364,28 @@ void BasicSc2Bot::SendArmyTo(const sc2::Point2D &target) {
   }
 }
 
-void BasicSc2Bot::ManageSupply() { TryBuildSupplyDepot(); }
-
 // Attempts to build specified structures - from tutorial
 // Attempts to build specified structures - from tutorial
-bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure, UNIT_TYPEID builder_unit_type) {
+bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure, UNIT_TYPEID unit_type) {
     const ObservationInterface *observation = Observation();
     
     // Find an available builder unit of the specified type
-    const Unit *builder_unit = nullptr;
+    const Unit *unit_to_build = nullptr;
     Units units = observation->GetUnits(Unit::Alliance::Self);
     for (const auto &unit : units) {
-        if (unit->unit_type == builder_unit_type && unit->orders.empty()) {
-            builder_unit = unit;
-            break; // Use the first available builder unit
-        }
-    }
 
-    if (!builder_unit) {
-        std::cerr << "No available builder units of type: " << static_cast<int>(builder_unit_type) << std::endl;
+    for (const auto &order : unit->orders) {
+      if (order.ability_id == ability_type_for_structure) {
         return false;
+      }
     }
-
+    if (unit->unit_type == unit_type && !unit->orders.empty()) {
+      unit_to_build = unit;
+    }
+  }
+  if (!unit_to_build) {
+    return false;
+  }
     // Find a valid build location near the base
     Point2D base_location = GetBaseLocation();
     Point2D build_location = FindBuildLocation(base_location, ability_type_for_structure);
@@ -393,37 +393,55 @@ bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure, UNIT_
     if (build_location == Point2D()) { // Check if FindBuildLocation returned a valid location
         std::cerr << "No valid build location found for structure: " << static_cast<int>(ability_type_for_structure) << std::endl;
         return false;
+    } else {
+        std::cout << "Build location found at: (" << build_location.x << ", " << build_location.y << ")" << std::endl;
     }
 
+    // Check resources
+
     // Issue the build command
-    Actions()->UnitCommand(builder_unit, ability_type_for_structure, build_location);
-    std::cout << "Issued build command for structure: " << static_cast<int>(ability_type_for_structure)
+    Actions()->UnitCommand(unit_to_build, ability_type_for_structure, build_location);
+    std::cout << "Issued build command to unit: " << unit_to_build->tag 
+              << " for structure: " << static_cast<int>(ability_type_for_structure) 
               << " at location: (" << build_location.x << ", " << build_location.y << ")" << std::endl;
 
     return true;
 }
 
-Point2D FindBuildLocation(Point2D base_location, ABILITY_ID ability_type) {
+
+Point2D BasicSc2Bot::FindBuildLocation(Point2D base_location, ABILITY_ID ability_type) {
+    const ObservationInterface *observation = Observation(); // Ensure we use the observation interface
+    //QueryInterface *query = Actions()->GetQueryInterface(); // Explicitly get the query interface
+    
     float build_radius = 12.0f;
 
     for (float dx = -build_radius; dx <= build_radius; dx += 2.0f) {
         for (float dy = -build_radius; dy <= build_radius; dy += 2.0f) {
-            Point2D current_location(base_location.x + dx, base_location.y + dy);
+            Point2D current_location = Point2D(base_location.x + dx, base_location.y + dy);
+
+            // Use query->Placement() instead of Query()->Placement() if needed
             if (Query()->Placement(ability_type, current_location)) {
-                return current_location; // Return first valid location found
+                // Ensure sufficient space for tech lab if necessary
+                if (ability_type == ABILITY_ID::BUILD_FACTORY || ability_type == ABILITY_ID::BUILD_STARPORT) {
+                    if (Query()->Placement(ability_type, Point2D(current_location.x + 3.0f, current_location.y))) {
+                        return current_location;
+                    }
+                } else {
+                    return current_location;
+                }
             }
         }
     }
-    // If no valid location is found, return an invalid Point2D (default value)
-    return Point2D();
+    return Point2D(); // Return a default empty point if no location is found
 }
-
 
 // MODULAR BUILDING HELPER FUNCTIONS
 bool BasicSc2Bot::TryBuildSupplyDepot() {
   const ObservationInterface *observation = Observation();
   if (observation->GetFoodUsed() <= observation->GetFoodCap() - 2)
     return false;
+
+  std::cout << "entered try build structure" << std::endl;
   return TryBuildStructure(ABILITY_ID::BUILD_SUPPLYDEPOT,
                            UNIT_TYPEID::TERRAN_SCV);
 }
