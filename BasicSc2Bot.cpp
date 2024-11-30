@@ -488,6 +488,7 @@ bool BasicSc2Bot::TryMorphSupplyDepot() {
   return false;
 }
 
+
 bool BasicSc2Bot::TryBuildBarracks() {
   // Build barracks if we have fewer than 2.
   if (CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) < 2) {
