@@ -464,6 +464,7 @@ bool BasicSc2Bot::TryBuildSupplyDepot() {
   return TryBuildStructure(ABILITY_ID::BUILD_SUPPLYDEPOT);
 }
 
+
 // Lowers all non-lowered supply depots
 bool BasicSc2Bot::TryMorphSupplyDepot() {
   const ObservationInterface *observation = Observation();
