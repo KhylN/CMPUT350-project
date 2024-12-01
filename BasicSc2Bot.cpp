@@ -21,7 +21,6 @@ void BasicSc2Bot::OnGameStart() {
 }
 
 void BasicSc2Bot::OnStep() {
-  ManageSCVs();
   ManageTroopsAndBuildings();
 
   // TODO: Expanded Logic for Posture II
@@ -139,39 +138,9 @@ void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
 
 // manage scv's will limit our scv production to 31
 void BasicSc2Bot::ManageSCVs() {
-  // Force SCVs to build refineries and harvest vespene
-  ForceSCVsToBuildAndHarvest();
-}
-
-void BasicSc2Bot::ForceSCVsToBuildAndHarvest() {
   const ObservationInterface *observation = Observation();
   Units scvs = observation->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_SCV));
   Units refineries = observation->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_REFINERY));
-  Units geysers = observation->GetUnits(Unit::Alliance::Neutral, IsUnit(UNIT_TYPEID::NEUTRAL_VESPENEGEYSER));
-
-  // Get command center position
-  const Unit *command_center = observation->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_COMMANDCENTER)).front(); 
-  Point2D base_position = command_center->pos;
-
-  // Build refineries if fewer than 2 exist
-  if (CountUnits(UNIT_TYPEID::TERRAN_REFINERY) < 2) {
-    for (const auto &geyser : geysers) {
-      // Check distance from the base
-      float distance = Distance2D(geyser->pos, base_position);
-      if (distance < 20.0f) { // Only consider geysers within 20 units
-        for (const auto &scv : scvs) {
-          // Only select SCVs that are not currently harvesting or building
-          if (scv->orders.empty() ||
-              (scv->orders.front().ability_id != ABILITY_ID::HARVEST_GATHER &&
-               scv->orders.front().ability_id != ABILITY_ID::HARVEST_RETURN)) {
-            Actions()->UnitCommand(scv, ABILITY_ID::BUILD_REFINERY, geyser);
-            break;
-          }
-        }
-      }
-    }
-  }
-
   // Assign SCVs to refineries
   for (const auto &refinery : refineries) {
     int scv_count = 0;
@@ -191,12 +160,18 @@ void BasicSc2Bot::ForceSCVsToBuildAndHarvest() {
           break; // Stop assigning SCVs once the max is reached
         }
         // Only select idle SCVs or those not assigned to other tasks
-        if (scv->orders.empty() ||
-            (scv->orders.front().ability_id != ABILITY_ID::BUILD_REFINERY &&
-             scv->orders.front().ability_id != ABILITY_ID::HARVEST_GATHER &&
-             scv->orders.front().ability_id != ABILITY_ID::HARVEST_RETURN)) {
-          Actions()->UnitCommand(scv, ABILITY_ID::SMART, refinery);
-          ++scv_count;
+        for (const auto &order : unit->orders) {
+          if (order.ability_id == ABILITY_ID::BUILD_SUPPLYDEPOT || 
+              order.ability_id == ABILITY_ID::BUILD_BARRACKS || 
+              order.ability_id == ABILITY_ID::BUILD_FACTORY || 
+              order.ability_id == ABILITY_ID::BUILD_STARPORT ||
+              order.ability_id == ABILITY_ID::BUILD_REFINERY) {
+            continue;
+          } else {
+            Actions()->UnitCommand(scv, ABILITY_ID::SMART, refinery);
+            ++scv_count;
+            break;
+          }
         }
       }
     } else if (scv_count > 3) {
@@ -216,6 +191,9 @@ void BasicSc2Bot::ForceSCVsToBuildAndHarvest() {
 }
 
 void BasicSc2Bot::ManageTroopsAndBuildings() {
+  TryBuildRefinery();
+  ManageSCVs();
+
   TryBuildSupplyDepot();
   TryMorphSupplyDepot();
   TryBuildBarracks();
@@ -357,36 +335,36 @@ void BasicSc2Bot::SendArmyTo(const sc2::Point2D &target) {
 }
 
 // Attempts to build specified structures - from tutorial
-bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure, UNIT_TYPEID unit_type) {
+bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure) {
     const ObservationInterface *observation = Observation();
 
     // Find an available builder unit of the specified type
     const Unit *unit_to_build = nullptr;
-    Units units = observation->GetUnits(Unit::Alliance::Self);
+    Units units = observation->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_SCV));
     for (const auto &unit : units) {
         bool unit_is_busy = false;
 
-        // Check if unit is already assigned to a building task
-        for (const auto &order : unit->orders) {
-            if (order.ability_id == ability_type_for_structure) {
-                // If the unit is already building the requested structure, return early
-                return false;
-            }
-            if (order.ability_id == ABILITY_ID::BUILD_SUPPLYDEPOT || 
-                order.ability_id == ABILITY_ID::BUILD_BARRACKS || 
-                order.ability_id == ABILITY_ID::BUILD_FACTORY || 
-                order.ability_id == ABILITY_ID::BUILD_STARPORT ||
-                order.ability_id == ABILITY_ID::BUILD_REFINERY) {
-                unit_is_busy = true;
-                break;
-            }
-        }
+      // Check if unit is already assigned to a building task
+      for (const auto &order : unit->orders) {
+          if (order.ability_id == ability_type_for_structure) {
+              // If the unit is already building the requested structure, return early
+              return false;
+          }
+          if (order.ability_id == ABILITY_ID::BUILD_SUPPLYDEPOT || 
+              order.ability_id == ABILITY_ID::BUILD_BARRACKS || 
+              order.ability_id == ABILITY_ID::BUILD_FACTORY || 
+              order.ability_id == ABILITY_ID::BUILD_STARPORT ||
+              order.ability_id == ABILITY_ID::BUILD_REFINERY) {
+              unit_is_busy = true;
+              break;
+          }
+      }
 
-        // Select an idle SCV that matches the required type
-        if (unit->unit_type == unit_type && !unit_is_busy) {
-            unit_to_build = unit;
-            break;
-        }
+      // Select an idle unit that matches the required type
+      if (unit->unit_type == unit_type && !unit_is_busy) {
+          unit_to_build = unit;
+          break;
+      }
     }
 
     if (!unit_to_build) {
@@ -400,8 +378,7 @@ bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure, UNIT_
     Point2D build_location = FindBuildLocation(base_location, ability_type_for_structure);
 
     if (build_location == Point2D()) { // Check if FindBuildLocation returned a valid location
-        std::cerr << "No valid build location found for structure: " 
-                  << static_cast<int>(ability_type_for_structure) << std::endl;
+        std::cerr << "No valid build location found for structure: " << static_cast<int>(ability_type_for_structure) << std::endl;
         return false;
     } else {
         std::cout << "Build location found at: (" << build_location.x << ", " << build_location.y << ")" << std::endl;
@@ -452,15 +429,41 @@ Point2D BasicSc2Bot::FindBuildLocation(Point2D base_location, ABILITY_ID ability
 }
 
 // MODULAR BUILDING HELPER FUNCTIONS
+
+bool BasicSc2Bot::TryBuildRefinery() {
+  // Build Vespene refinery near base if there are fewer than 2
+  const ObservationInterface *observation = Observation();
+  Units scvs = observation->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_SCV));
+  Units geysers = observation->GetUnits(Unit::Alliance::Neutral, IsUnit(UNIT_TYPEID::NEUTRAL_VESPENEGEYSER));
+
+  if (CountUnits(UNIT_TYPEID::TERRAN_REFINERY) < 2) {
+    for (const auto &geyser : geysers) {
+      // Check distance from the base
+      float distance = Distance2D(geyser->pos, base_position);
+      if (distance < 20.0f) { // Only consider geysers within 20 units
+        for (const auto &scv : scvs) {
+          // Only select SCVs that are not currently harvesting or building
+          if (scv->orders.empty() ||
+              (scv->orders.front().ability_id != ABILITY_ID::HARVEST_GATHER &&
+               scv->orders.front().ability_id != ABILITY_ID::HARVEST_RETURN)) {
+            Actions()->UnitCommand(scv, ABILITY_ID::BUILD_REFINERY, geyser);
+            break;
+          }
+        }
+      }
+    }
+  }
+}
+
 bool BasicSc2Bot::TryBuildSupplyDepot() {
   const ObservationInterface *observation = Observation();
   if (observation->GetFoodUsed() <= observation->GetFoodCap() - 2)
     return false;
 
   std::cout << "entered try build structure" << std::endl;
-  return TryBuildStructure(ABILITY_ID::BUILD_SUPPLYDEPOT,
-                           UNIT_TYPEID::TERRAN_SCV);
+  return TryBuildStructure(ABILITY_ID::BUILD_SUPPLYDEPOT);
 }
+
 // Lowers all non-lowered supply depots
 bool BasicSc2Bot::TryMorphSupplyDepot() {
   const ObservationInterface *observation = Observation();
@@ -491,8 +494,7 @@ bool BasicSc2Bot::TryBuildStarport() {
   // Build Starport if we don't have one and if we have a Factory.
   if (CountUnits(UNIT_TYPEID::TERRAN_STARPORT) < 1 &&
       CountUnits(UNIT_TYPEID::TERRAN_FACTORY) > 0) {
-    return TryBuildStructure(ABILITY_ID::BUILD_STARPORT,
-                             UNIT_TYPEID::TERRAN_SCV);
+    return TryBuildStructure(ABILITY_ID::BUILD_STARPORT);
   }
   return false;
 }
@@ -501,8 +503,7 @@ bool BasicSc2Bot::TryBuildFactory() {
   // Build Factory if we have built the 20 Marines.
   if (CountUnits(UNIT_TYPEID::TERRAN_MARINE) >= 5) {
     if (CountUnits(UNIT_TYPEID::TERRAN_FACTORY) < 1) {
-      return TryBuildStructure(ABILITY_ID::BUILD_FACTORY,
-                               UNIT_TYPEID::TERRAN_SCV);
+      return TryBuildStructure(ABILITY_ID::BUILD_FACTORY);
     }
   }
   return false;
