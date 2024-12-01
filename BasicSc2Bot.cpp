@@ -430,7 +430,7 @@ Point2D BasicSc2Bot::FindBuildLocation(Point2D base_location, ABILITY_ID ability
 
 // MODULAR BUILDING HELPER FUNCTIONS
 
-bool BasicSc2Bot::TryBuildRefinery() {
+void BasicSc2Bot::TryBuildRefinery() {
   // Build Vespene refinery near base if there are fewer than 2
   const ObservationInterface *observation = Observation();
   Units scvs = observation->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_SCV));
