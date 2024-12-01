@@ -41,7 +41,7 @@ void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
     const Unit *mineral_target = FindNearestMineralPatch(unit->pos);
     const Unit *gas_target = FindNearestVespene(unit->pos);
 
-    if (mineral_target) {
+    if (mineral_target && unit->) {
       Actions()->UnitCommand(unit, ABILITY_ID::SMART, mineral_target);
     }
     break;
@@ -382,7 +382,7 @@ bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure, UNIT_
                 return false;
             }
             if (order.ability_id == ABILITY_ID::BUILD_SUPPLYDEPOT || 
-                order.ability_id == ABILITY_ID::BUILD_BARRACKS) {
+                order.ability_id == ABILITY_ID::BUILD_BARRACKS || order.ability_id == ABILITY_ID::BUILD_FACTORY || order.ability_id == ABILITY_ID::BUILD_STARPORT) {
                 unit_is_busy = true;
                 break;
             }
@@ -430,10 +430,6 @@ bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure, UNIT_
 
     return true;
 }
-
-
-
-
 
 Point2D BasicSc2Bot::FindBuildLocation(Point2D base_location, ABILITY_ID ability_type) {
     const ObservationInterface *observation = Observation(); // Ensure we use the observation interface
