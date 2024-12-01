@@ -41,7 +41,7 @@ void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
     const Unit *mineral_target = FindNearestMineralPatch(unit->pos);
     const Unit *gas_target = FindNearestVespene(unit->pos);
 
-    if (mineral_target && unit->) {
+    if (mineral_target) {
       Actions()->UnitCommand(unit, ABILITY_ID::SMART, mineral_target);
     }
     break;
@@ -120,10 +120,8 @@ void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
       // If the scout Marine is dead, mark the scout as dead
       scout_died = true;
       // set the enemy base location
-      enemy_base_location =
-          game_info.enemy_start_locations[current_target_index];
-      std::cout << "Enemy base location identified: " << enemy_base_location.x
-                << ", " << enemy_base_location.y << std::endl;
+      enemy_base_location = game_info.enemy_start_locations[current_target_index];
+      std::cout << "Enemy base location identified: " << enemy_base_location.x << ", " << enemy_base_location.y << std::endl;
     }
 
     break;
@@ -147,19 +145,12 @@ void BasicSc2Bot::ManageSCVs() {
 
 void BasicSc2Bot::ForceSCVsToBuildAndHarvest() {
   const ObservationInterface *observation = Observation();
-  Units scvs = observation->GetUnits(Unit::Alliance::Self,
-                                     IsUnit(UNIT_TYPEID::TERRAN_SCV));
-  Units refineries = observation->GetUnits(
-      Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_REFINERY));
-  Units geysers = observation->GetUnits(
-      Unit::Alliance::Neutral, IsUnit(UNIT_TYPEID::NEUTRAL_VESPENEGEYSER));
+  Units scvs = observation->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_SCV));
+  Units refineries = observation->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_REFINERY));
+  Units geysers = observation->GetUnits(Unit::Alliance::Neutral, IsUnit(UNIT_TYPEID::NEUTRAL_VESPENEGEYSER));
 
   // Get command center position
-  const Unit *command_center =
-      observation
-          ->GetUnits(Unit::Alliance::Self,
-                     IsUnit(UNIT_TYPEID::TERRAN_COMMANDCENTER))
-          .front();
+  const Unit *command_center = observation->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_COMMANDCENTER)).front(); 
   Point2D base_position = command_center->pos;
 
   // Build refineries if fewer than 2 exist
@@ -382,7 +373,10 @@ bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure, UNIT_
                 return false;
             }
             if (order.ability_id == ABILITY_ID::BUILD_SUPPLYDEPOT || 
-                order.ability_id == ABILITY_ID::BUILD_BARRACKS || order.ability_id == ABILITY_ID::BUILD_FACTORY || order.ability_id == ABILITY_ID::BUILD_STARPORT) {
+                order.ability_id == ABILITY_ID::BUILD_BARRACKS || 
+                order.ability_id == ABILITY_ID::BUILD_FACTORY || 
+                order.ability_id == ABILITY_ID::BUILD_STARPORT ||
+                order.ability_id == ABILITY_ID::BUILD_REFINERY) {
                 unit_is_busy = true;
                 break;
             }
