@@ -431,14 +431,14 @@ Point2D BasicSc2Bot::FindBuildLocation(Point2D base_location, ABILITY_ID ability
     
     float build_radius = 12.0f;
 
-    for (float dx = -build_radius; dx <= build_radius; dx += 2.0f) {
-        for (float dy = -build_radius; dy <= build_radius; dy += 2.0f) {
+    for (float dx = -build_radius; dx <= build_radius; dx += 3.0f) {
+        for (float dy = -build_radius; dy <= build_radius; dy += 3.0f) {
             Point2D current_location = Point2D(base_location.x + dx, base_location.y + dy);
 
             // Use query->Placement() instead of Query()->Placement() if needed
             if (Query()->Placement(ability_type, current_location)) {
                 // Ensure sufficient space for tech lab if necessary
-                if (ability_type == ABILITY_ID::BUILD_FACTORY || ability_type == ABILITY_ID::BUILD_STARPORT) {
+                if (ability_type == ABILITY_ID::BUILD_FACTORY || ability_type == ABILITY_ID::BUILD_STARPORT  || ability_type == ABILITY_ID:BUILD_BARRACKS) {
                     if (Query()->Placement(ability_type, Point2D(current_location.x + 3.0f, current_location.y))) {
                         return current_location;
                     }
@@ -569,19 +569,18 @@ void BasicSc2Bot::ManageAllTroops() {
 
 void BasicSc2Bot::ManageBarracks() {
   // If we have fewer than 20 Marines, attempt to train Barracks.
-  if (CountUnits(UNIT_TYPEID::TERRAN_MARINE) < 20) {
-    Units barracks = Observation()->GetUnits(
-        Unit::Alliance::Self,
-        IsUnit(UNIT_TYPEID::TERRAN_BARRACKS)); // Get list of all barracks on
-                                               // our team.
-    for (const auto &barrack : barracks) {
-      if (barrack->orders.empty()) {
-        Actions()->UnitCommand(
-            barrack,
-            ABILITY_ID::TRAIN_MARINE); // Order barracks to train Marine if no
-                                       // orders given yet.
+  Units barracks = Observation()->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_BARRACKS)); // Get list of all barracks on our team
+  for (const auto &barrack : barracks) {
+    const Unit *add_on = Observation()->GetUnit(barrack->add_on_tag);
+    if (barrack->orders.empty()) {
+      if (CountUnits(UNIT_TYPEID::TERRAN_MARINE) < 10) {  
+          Actions()->UnitCommand(barrack, ABILITY_ID::TRAIN_MARINE); // Order barracks to train Marine if no orders given yet.
+      } else if (!add_on) {
+        Actions()->UnitCommand(barrack, ABILITY_ID::BUILD_TECHLAB); // If no add-on AND we have more than 10 Marines, try to build tech lab.
+      } else if (add_on && add_on->unit_type == UNIT_TYPEID::TERRAN_BARRACKSTECHLAB && CountUnits(UNIT_TYPEID::TERRAN_MARAUDER) < 10)
+        Actions()->UnitCommand(barrack, ABILITY_ID::TRAIN_MARAUDER); // If we have a tech lab, try to train 10 Marauders
       }
-    }
+    } 
   }
 }
 
@@ -593,8 +592,7 @@ void BasicSc2Bot::ManageFactory() {
     - If a Starport does not have Tech Lab, we order it to build one.
   3) Eligible Starports will train Siege Tank
   */
-  Units factories = Observation()->GetUnits(
-      Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_FACTORY));
+  Units factories = Observation()->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_FACTORY));
 
   for (const auto &factory : factories) {
     const Unit *add_on = Observation()->GetUnit(factory->add_on_tag);
