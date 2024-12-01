@@ -15,54 +15,18 @@ public:
   virtual void OnUnitIdle(const sc2::Unit *unit);
 
 private:
-  // make macroes for marines, hellions, vikings, medivacs, seigetanks
-  const int THRESH = 30;
-  const int MARINE = 10;
-  const int HELLIONS = 20;
-  const int VIKINGS = 30;
-  const int MEDIVACS = 40;
-  const int SEIGETANKS = 50;
+  #include "BotManagerFuncs.h"
 
-  void ManageSupply();
-  void ManageSCVs();
-  void ManageTroopsAndBuildings();
-  int CountUnits(sc2::UNIT_TYPEID unit_type);
-  int MilitaryStrength();
+  #include "BotGameStateFuncs.h"
 
-  bool
-  TryBuildStructure(sc2::ABILITY_ID ability_type_for_structure,
-                    sc2::UNIT_TYPEID unit_type = sc2::UNIT_TYPEID::TERRAN_SCV);
+  #include "BotBuilderFuncs.h"
 
-  bool TryBuildSupplyDepot();
-  bool TryBuildBarracks();
-  bool TryBuildStarport();
-  bool TryBuildFactory();
-
-  void ManageBarracks();
-  void ManageStarport();
-  void ManageFactory();
-
-  void ManageAllTroops();
-
-  sc2::Point2D GetBaseLocation();
-
-  const sc2::Unit *FindNearestMineralPatch(const sc2::Point2D &start);
-  const sc2::Unit *FindNearestVespene(const sc2::Point2D &start);
-  void ForceSCVsToBuildAndHarvest();
-
-  std::vector<sc2::Point2D> potential_enemy_locations_;
-  size_t current_attack_wave_ = 1;
-
-  void InitializeEnemyLocations();
-  void LaunchAttack();
-  bool IsArmyIdle();
-  void SendArmyTo(const sc2::Point2D &target);
+  #include "BotAttackManager.h"
 
   sc2::Tag scout_marine_id = 0; // 0 means no scout assigned yet
   size_t current_target_index = 0; // Index of the current enemy start position to scout
   sc2::Point2D enemy_base_location; // Enemy base location when identified
   bool scout_died = false;          // Flag to indicate if the scout has died
-  sc2::Point2D FindBuildLocation(sc2::Point2D base_location, sc2::ABILITY_ID ability_type);
 
 };
 
