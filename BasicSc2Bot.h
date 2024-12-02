@@ -31,6 +31,7 @@ private:
   sc2::Point2D base_location = sc2::Point2D();
   sc2::Point2D satellite_location = sc2::Point2D();
   sc2::Point2D main_base_mineral_patch = sc2::Point2D();
+  bool satellite_built = false;
 };
 
 #endif

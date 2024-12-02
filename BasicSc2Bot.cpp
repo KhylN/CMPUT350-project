@@ -592,10 +592,7 @@ bool BasicSc2Bot::TryBuildNewCC() {
   // Build satellite command center to facilitate more eco. Built immediately
   // after 1st Vespene
   GetBaseLocation(); // Set base location 1st call
-  if (CountUnits(UNIT_TYPEID::TERRAN_REFINERY) > 0 &&
-      CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) < 1 &&
-      CountUnits(UNIT_TYPEID::TERRAN_COMMANDCENTER) < 2 &&
-      CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMANDFLYING) < 1) {
+  if (CountUnits(UNIT_TYPEID::TERRAN_REFINERY) > 0 && !satellite_built) {
     return TryBuildStructure(ABILITY_ID::BUILD_COMMANDCENTER);
   }
   return false;
@@ -821,8 +818,7 @@ void BasicSc2Bot::ManageAllTroops() {
 void BasicSc2Bot::ManageBarracks() {
   Units barracks = Observation()->GetUnits(
       Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_BARRACKS));
-  if (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 0 ||
-      CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMANDFLYING) > 0) {
+  if (satellite_built) {
     for (const auto &barrack : barracks) {
       const Unit *add_on = Observation()->GetUnit(barrack->add_on_tag);
       if (barrack->add_on_tag == NullTag) {
@@ -993,6 +989,7 @@ void BasicSc2Bot::ManageSecondBase() {
           Actions()->UnitCommand(
               cc, ABILITY_ID::MORPH_ORBITALCOMMAND); // Lower all idle Supply
                                                      // Depots
+          satellite_built = true;
         }
       }
     }
