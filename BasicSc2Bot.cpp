@@ -17,6 +17,7 @@ void BasicSc2Bot::InitializeEnemyLocations() {
 void BasicSc2Bot::OnGameStart() {
   // Initialize the enemy locations
   InitializeEnemyLocations();
+  GetBaseLocation();
   std::cout << "Go!" << std::endl;
 }
 
@@ -30,8 +31,13 @@ void BasicSc2Bot::OnStep() {
 void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
   switch (unit->unit_type.ToType()) {
   case UNIT_TYPEID::TERRAN_COMMANDCENTER: {
-    if (CountUnits(UNIT_TYPEID::TERRAN_SCV) < 31) {
+    if (CountUnits(UNIT_TYPEID::TERRAN_SCV) < 31 &&
+        CountUnits(UNIT_TYPEID::TERRAN_COMMANDCENTER) < 2) {
       Actions()->UnitCommand(unit, ABILITY_ID::TRAIN_SCV);
+    } else {
+      if (Point2D(unit->pos) == base_location) {
+        Actions()->UnitCommand(unit, ABILITY_ID::TRAIN_SCV);
+      }
     }
     break;
   }
@@ -188,6 +194,9 @@ void BasicSc2Bot::ManageSCVs() {
 void BasicSc2Bot::ManageTroopsAndBuildings() {
   TryBuildRefinery();
   ManageSCVs();
+
+  TryBuildNewCC();
+  ManageSecondBase();
 
   TryBuildSupplyDepot();
   TryMorphSupplyDepot();
@@ -384,7 +393,8 @@ bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure) {
           order.ability_id == ABILITY_ID::BUILD_BARRACKS ||
           order.ability_id == ABILITY_ID::BUILD_FACTORY ||
           order.ability_id == ABILITY_ID::BUILD_STARPORT ||
-          order.ability_id == ABILITY_ID::BUILD_REFINERY) {
+          order.ability_id == ABILITY_ID::BUILD_REFINERY ||
+          order.ability_id == ABILITY_ID::BUILD_COMMANDCENTER) {
         unit_is_busy = true;
         break;
       }
@@ -542,6 +552,18 @@ bool BasicSc2Bot::TryBuildBarracks() {
   // Build barracks if we have fewer than 2.
   if (CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) < 2) {
     return TryBuildStructure(ABILITY_ID::BUILD_BARRACKS);
+  }
+  return false;
+}
+
+bool BasicSc2Bot::TryBuildNewCC() {
+  // Build satellite command center to facilitate more eco. Built immediately
+  // after 1st Vespene
+  GetBaseLocation(); // Set base location 1st call
+  if (CountUnits(UNIT_TYPEID::TERRAN_REFINERY) > 0 &&
+      CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) < 1 &&
+      CountUnits(UNIT_TYPEID::TERRAN_COMMANDCENTER) < 2) {
+    return TryBuildStructure(ABILITY_ID::BUILD_COMMANDCENTER);
   }
   return false;
 }
@@ -745,19 +767,20 @@ void BasicSc2Bot::ManageAllTroops() {
 void BasicSc2Bot::ManageBarracks() {
   Units barracks = Observation()->GetUnits(
       Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_BARRACKS));
-
-  for (const auto &barrack : barracks) {
-    const Unit *add_on = Observation()->GetUnit(barrack->add_on_tag);
-    if (barrack->add_on_tag == NullTag) {
-      Actions()->UnitCommand(barrack, ABILITY_ID::BUILD_TECHLAB);
-    } else if (add_on &&
-               add_on->unit_type == UNIT_TYPEID::TERRAN_BARRACKSTECHLAB &&
-               CountUnits(UNIT_TYPEID::TERRAN_MARINE) < 10) {
-      Actions()->UnitCommand(barrack, ABILITY_ID::TRAIN_MARINE);
-    } else if (add_on &&
-               add_on->unit_type == UNIT_TYPEID::TERRAN_BARRACKSTECHLAB &&
-               CountUnits(UNIT_TYPEID::TERRAN_MARAUDER) < 10) {
-      Actions()->UnitCommand(barrack, ABILITY_ID::TRAIN_MARAUDER);
+  if (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 0) {
+    for (const auto &barrack : barracks) {
+      const Unit *add_on = Observation()->GetUnit(barrack->add_on_tag);
+      if (barrack->add_on_tag == NullTag) {
+        Actions()->UnitCommand(barrack, ABILITY_ID::BUILD_TECHLAB);
+      } else if (add_on &&
+                 add_on->unit_type == UNIT_TYPEID::TERRAN_BARRACKSTECHLAB &&
+                 CountUnits(UNIT_TYPEID::TERRAN_MARINE) < 10) {
+        Actions()->UnitCommand(barrack, ABILITY_ID::TRAIN_MARINE);
+      } else if (add_on &&
+                 add_on->unit_type == UNIT_TYPEID::TERRAN_BARRACKSTECHLAB &&
+                 CountUnits(UNIT_TYPEID::TERRAN_MARAUDER) < 10) {
+        Actions()->UnitCommand(barrack, ABILITY_ID::TRAIN_MARAUDER);
+      }
     }
   }
 }
@@ -888,11 +911,50 @@ int BasicSc2Bot::MilitaryStrength() {
 
 // Function to get the location fo the commance center
 Point2D BasicSc2Bot::GetBaseLocation() {
-  const ObservationInterface *observation = Observation();
-  const Unit *command_center =
-      observation
-          ->GetUnits(Unit::Alliance::Self,
-                     IsUnit(UNIT_TYPEID::TERRAN_COMMANDCENTER))
-          .front();
-  return command_center->pos;
+  if (base_location == Point2D()) {
+    const ObservationInterface *observation = Observation();
+    const Unit *command_center =
+        observation
+            ->GetUnits(Unit::Alliance::Self,
+                       IsUnit(UNIT_TYPEID::TERRAN_COMMANDCENTER))
+            .front();
+    base_location =
+        command_center->pos; // Set base location if not already set.
+  }
+  return base_location;
+}
+
+void BasicSc2Bot::ManageSecondBase() {
+  std::cout << "Managing second base" << std::endl;
+  // Turn second CC into Orbital Command
+  Units ccs = Observation()->GetUnits(
+      Unit::Alliance::Self,
+      IsUnit(UNIT_TYPEID::TERRAN_COMMANDCENTER)); // Get list of all CCs on our
+                                                  // team
+  if (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) < 1 &&
+      CountUnits(UNIT_TYPEID::TERRAN_COMMANDCENTER) > 1) {
+    for (const auto &cc : ccs) {
+      if (Point2D(cc->pos) != base_location) {
+        std::cout << "Second base found" << std::endl
+                  << std::endl
+                  << std::endl
+                  << std::endl;
+
+        std::cout << "BOOOOOOLL: " << cc->orders.empty() << std::endl
+                  << std::endl
+                  << std::endl
+                  << std::endl
+                  << std::endl;
+        std::cout << "HEREEEEEEE" << std::endl
+                  << std::endl
+                  << std::endl
+                  << std::endl;
+        if (cc->orders.empty()) {
+          std::cout << "Turning second base into Orbital Command" << std::endl;
+          Actions()->UnitCommand(cc, ABILITY_ID::MORPH_ORBITALCOMMAND);
+        }
+      }
+    }
+  } else {
+  }
 }
