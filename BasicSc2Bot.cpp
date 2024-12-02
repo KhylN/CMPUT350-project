@@ -199,6 +199,9 @@ void BasicSc2Bot::ManageTroopsAndBuildings() {
   TryBuildBarracks();
   ManageBarracks();
 
+  TryBuildEnggBay();
+  TryBuildMissileTurret();
+
   TryBuildStarport();
   ManageStarport();
 
@@ -372,7 +375,11 @@ bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure) {
 
     // Find a valid build location near the base
     Point2D base_location = GetBaseLocation();
-    Point2D build_location = FindBuildLocation(base_location, ability_type_for_structure);
+    if (ability_type_for_structure == ABILITY_ID::BUILD_MISSILETURRET) {
+      Point2D build_location = FindBuildLocation(base_location, ability_type_for_structure, 4);
+    } else {
+      Point2D build_location = FindBuildLocation(base_location, ability_type_for_structure);
+    }
 
     if (build_location == Point2D()) { // Check if FindBuildLocation returned a valid location
         std::cerr << "No valid build location found for structure: " << static_cast<int>(ability_type_for_structure) << std::endl;
@@ -399,12 +406,10 @@ bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure) {
     return true;
 }
 
-Point2D BasicSc2Bot::FindBuildLocation(Point2D base_location, ABILITY_ID ability_type) {
+Point2D BasicSc2Bot::FindBuildLocation(Point2D base_location, ABILITY_ID ability_type, float build_radius=12.0f) {
     const ObservationInterface *observation = Observation(); // Ensure we use the observation interface
     //QueryInterface *query = Actions()->GetQueryInterface(); // Explicitly get the query interface
     
-    float build_radius = 12.0f;
-
     for (float dx = -build_radius; dx <= build_radius; dx += 3.0f) {
         for (float dy = -build_radius; dy <= build_radius; dy += 3.0f) {
             Point2D current_location = Point2D(base_location.x + dx, base_location.y + dy);
@@ -488,6 +493,22 @@ bool BasicSc2Bot::TryBuildBarracks() {
   return false;
 }
 
+bool BasicSc2Bot::TryBuildEnggBay() {
+  // Build Engineering Bay if we have at least one barracks and if we do not yet have an Engg Bay.
+  if (CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) > 1 && CountUnits(UNIT_TYPEID::TERRAN_ENGINEERINGBAY)) {
+    return TryBuildStructure(ABILITY_ID::BUILD_ENGINEERINGBAY);
+  }
+  return false;
+}
+
+bool BasicSc2Bot::TryBuildMissileTurret() {
+  // Build MissileTurret if we have an Engineering Bay (prereq) and if we have no more than 3.
+  if (CountUnits(UNIT_TYPEID::TERRAN_ENGINEERINGBAY) > 0 && CountUnits(UNIT_TYPEID::TERRAN_MISSILETURRET < 3)) {
+    return TryBuildStructure(ABILITY_ID::BUILD_MISSILETURRET);
+  }
+  return false;
+}
+
 bool BasicSc2Bot::TryBuildStarport() {
   // Build Starport if we don't have one and if we have a Factory.
   if (CountUnits(UNIT_TYPEID::TERRAN_STARPORT) < 1 &&
@@ -499,7 +520,7 @@ bool BasicSc2Bot::TryBuildStarport() {
 
 bool BasicSc2Bot::TryBuildFactory() {
   // Build Factory if we have built the 20 Marines.
-  if (CountUnits(UNIT_TYPEID::TERRAN_MARINE) >= 5) {
+  if (CountUnits(UNIT_TYPEID::TERRAN_ENGINEERINGBAY) > 1) {
     if (CountUnits(UNIT_TYPEID::TERRAN_FACTORY) < 1) {
       return TryBuildStructure(ABILITY_ID::BUILD_FACTORY);
     }
