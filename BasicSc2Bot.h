@@ -23,6 +23,9 @@ private:
 
   #include "BotAttackManager.h"
 
+  Point2D base_location = Point2D();
+  Point2D satellite_location = Point2D();
+  bool satellite_built = false;
   sc2::Tag scout_marine_id = 0; // 0 means no scout assigned yet
   size_t current_target_index = 0; // Index of the current enemy start position to scout
   sc2::Point2D enemy_base_location; // Enemy base location when identified

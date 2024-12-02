@@ -68,6 +68,15 @@ void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
     }
     break;
   }
+  case UNIT_TYPEID::TERRAN_MULE: {
+    const Unit *mineral_target = FindNearestMineralPatch(unit->pos);
+    Point2D second_base_mineral_patch = Point2D(mineral_target->pos);
+
+    if (mineral_target) {
+      Actions()->UnitCommand(unit, ABILITY_ID::SMART, mineral_target);
+    }
+    break;
+  }
   case UNIT_TYPEID::TERRAN_MARINE: {
     // Static variables to track the scout Marine's ID and discovered enemy base
     // location
@@ -181,10 +190,11 @@ void BasicSc2Bot::ManageSCVs() {
         // Only select idle SCVs or those not assigned to other tasks
         for (const auto &order : scv->orders) {
           if (order.ability_id == ABILITY_ID::BUILD_SUPPLYDEPOT ||
-              order.ability_id == ABILITY_ID::BUILD_BARRACKS ||
-              order.ability_id == ABILITY_ID::BUILD_FACTORY ||
-              order.ability_id == ABILITY_ID::BUILD_STARPORT ||
-              order.ability_id == ABILITY_ID::BUILD_REFINERY) {
+            order.ability_id == ABILITY_ID::BUILD_BARRACKS ||
+            order.ability_id == ABILITY_ID::BUILD_FACTORY ||
+            order.ability_id == ABILITY_ID::BUILD_STARPORT ||
+            order.ability_id == ABILITY_ID::BUILD_REFINERY ||
+            order.ability_id == ABILITY_ID::BUILD_COMMANDCENTER) {
             continue;
           } else {
             Actions()->UnitCommand(scv, ABILITY_ID::SMART, refinery);
@@ -541,14 +551,10 @@ void BasicSc2Bot::TryBuildRefinery() {
 
 bool BasicSc2Bot::TryBuildSupplyDepot() {
   const ObservationInterface *observation = Observation();
-  if (observation->GetFoodUsed() <= observation->GetFoodCap() - 2) && 
-      (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 0 ||
-      CountUnits(UNIT_TYPEID::TERRAN_COMMANDCENTER) > 0 ||
-      CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMANDFLYING) > 0) // Build Supply Depot IFF we have already built the 2nd Command Center
-    return false;
-
-  std::cout << "entered try build structure" << std::endl;
-  return TryBuildStructure(ABILITY_ID::BUILD_SUPPLYDEPOT);
+  if (observation->GetFoodUsed() > observation->GetFoodCap() - 2) {
+        return TryBuildStructure(ABILITY_ID::BUILD_SUPPLYDEPOT);
+      } // Build Supply Depot IFF we have already built the 2nd Command Center
+  return false;
 }
 
 // Lowers all non-lowered supply depots
@@ -586,10 +592,7 @@ bool BasicSc2Bot::TryBuildNewCC() {
   // Build satellite command center to facilitate more eco. Built immediately
   // after 1st Vespene
   GetBaseLocation(); // Set base location 1st call
-  if (CountUnits(UNIT_TYPEID::TERRAN_REFINERY) > 0 &&
-      CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) < 1 &&
-      CountUnits(UNIT_TYPEID::TERRAN_COMMANDCENTER) < 2 &&
-      CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMANDFLYING) < 1) {
+  if (CountUnits(UNIT_TYPEID::TERRAN_REFINERY) > 0 && !satellite_built) {
     return TryBuildStructure(ABILITY_ID::BUILD_COMMANDCENTER);
   }
   return false;
@@ -815,8 +818,7 @@ void BasicSc2Bot::ManageAllTroops() {
 void BasicSc2Bot::ManageBarracks() {
   Units barracks = Observation()->GetUnits(
       Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_BARRACKS));
-  if (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 0 ||
-      CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMANDFLYING) > 0) {
+  if (satellite_built) {
     for (const auto &barrack : barracks) {
       const Unit *add_on = Observation()->GetUnit(barrack->add_on_tag);
       if (barrack->add_on_tag == NullTag) {
@@ -987,6 +989,7 @@ void BasicSc2Bot::ManageSecondBase() {
           Actions()->UnitCommand(
               cc, ABILITY_ID::MORPH_ORBITALCOMMAND); // Lower all idle Supply
                                                      // Depots
+          satellite_built = true;
         }
       }
     }
@@ -1049,8 +1052,12 @@ void BasicSc2Bot::ManageSecondBase() {
                     << ", " << satellite_location.y << std::endl;
         }
 
-      } else if (CountUnits(UNIT_TYPEID::TERRAN_MULE) < 10) {
+      } else if (CountUnits(UNIT_TYPEID::TERRAN_MULE) < 2) {
         // Train MULE if fewer than 10.
+        Actions()->UnitCommand(orbital, ABILITY_ID::EFFECT_CALLDOWNMULE, FindNearestMineralPatch(satellite_location));
+      }
+      else{
+        Actions()->UnitCommand(orbital, ABILITY_ID::TRAIN_SCV);
       }
     }
   } else if (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMANDFLYING) > 0) {
