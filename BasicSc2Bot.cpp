@@ -575,10 +575,10 @@ void BasicSc2Bot::ManageBarracks() {
   for (const auto &barrack : barracks) {
     const Unit *add_on = Observation()->GetUnit(barrack->add_on_tag);
     if (barrack->orders.empty()) {
-      if (CountUnits(UNIT_TYPEID::TERRAN_MARINE) < 10) {  
+      if (!add_on) { // Barracks' priority is to build a tech lab.
+        Actions()->UnitCommand(barrack, ABILITY_ID::BUILD_TECHLAB);
+      } else if (CountUnits(UNIT_TYPEID::TERRAN_MARINE) < 10) {  
           Actions()->UnitCommand(barrack, ABILITY_ID::TRAIN_MARINE); // Order barracks to train Marine if no orders given yet.
-      } else if (!add_on) {
-        Actions()->UnitCommand(barrack, ABILITY_ID::BUILD_TECHLAB); // If no add-on AND we have more than 10 Marines, try to build tech lab.
       } else if (add_on && add_on->unit_type == UNIT_TYPEID::TERRAN_BARRACKSTECHLAB && CountUnits(UNIT_TYPEID::TERRAN_MARAUDER) < 10)
         Actions()->UnitCommand(barrack, ABILITY_ID::TRAIN_MARAUDER); // If we have a tech lab, try to train 10 Marauders
       }
