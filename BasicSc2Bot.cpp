@@ -47,12 +47,9 @@ void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
   switch (unit->unit_type.ToType()) {
   case UNIT_TYPEID::TERRAN_COMMANDCENTER: {
     if (CountUnits(UNIT_TYPEID::TERRAN_SCV) < 30 &&
-        CountUnits(UNIT_TYPEID::TERRAN_COMMANDCENTER) < 2) {
+        CountUnits(UNIT_TYPEID::TERRAN_COMMANDCENTER) < 2 &&
+        Point2D(unit->pos) == base_location) {
       Actions()->UnitCommand(unit, ABILITY_ID::TRAIN_SCV);
-    } else {
-      if (Point2D(unit->pos) == base_location) {
-        Actions()->UnitCommand(unit, ABILITY_ID::TRAIN_SCV);
-      }
     }
     break;
   }
@@ -119,8 +116,13 @@ void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
       } else {
         // Other idle Marines should patrol
         if (marine->orders.empty()) {
-          Actions()->UnitCommand(marine, ABILITY_ID::GENERAL_PATROL,
-                                 GetBaseLocation());
+          if (satellite_location.x != 0 && satellite_location.y != 0) {
+            Actions()->UnitCommand(marine, ABILITY_ID::GENERAL_PATROL,
+                                   satellite_location);
+          } else {
+            Actions()->UnitCommand(marine, ABILITY_ID::GENERAL_PATROL,
+                                   GetBaseLocation());
+          }
         }
       }
     }
@@ -700,6 +702,11 @@ void BasicSc2Bot::ManageAllTroops() {
 
   for (const auto &marauder : marauders) {
     if (marauder->orders.empty()) { // If marauder is idle
+      if (satellite_location.x != 0 && satellite_location.y != 0) {
+        Actions()->UnitCommand(marauder, ABILITY_ID::GENERAL_PATROL,
+                               satellite_location);
+      }
+    } else {
       Actions()->UnitCommand(marauder, ABILITY_ID::GENERAL_PATROL,
                              GetBaseLocation());
     }
@@ -708,10 +715,16 @@ void BasicSc2Bot::ManageAllTroops() {
   // patrol command for Hellions
   Units hellions = Observation()->GetUnits(Unit::Alliance::Self,
                                            IsUnit(UNIT_TYPEID::TERRAN_HELLION));
+
   for (const auto &hellion : hellions) {
-    if (hellion->orders.empty()) { // If hellion is idle
-      Actions()->UnitCommand(hellion, ABILITY_ID::GENERAL_PATROL,
-                             GetBaseLocation());
+    if (hellion->orders.empty()) {
+      if (satellite_location.x != 0 && satellite_location.y != 0) {
+        Actions()->UnitCommand(hellion, ABILITY_ID::GENERAL_PATROL,
+                               satellite_location);
+      } else {
+        Actions()->UnitCommand(hellion, ABILITY_ID::GENERAL_PATROL,
+                               GetBaseLocation());
+      }
     }
   }
 
@@ -720,8 +733,13 @@ void BasicSc2Bot::ManageAllTroops() {
       Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_SIEGETANK));
   for (const auto &tank : siegeTanks) {
     if (tank->orders.empty()) {
-      Actions()->UnitCommand(tank, ABILITY_ID::GENERAL_PATROL,
-                             GetBaseLocation());
+      if (satellite_location.x != 0 && satellite_location.y != 0) {
+        Actions()->UnitCommand(tank, ABILITY_ID::GENERAL_PATROL,
+                               satellite_location);
+      } else {
+        Actions()->UnitCommand(tank, ABILITY_ID::GENERAL_PATROL,
+                               GetBaseLocation());
+      }
     }
   }
 
@@ -778,8 +796,13 @@ void BasicSc2Bot::ManageAllTroops() {
       Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_VIKINGFIGHTER));
   for (const auto &viking : vikings) {
     if (viking->orders.empty()) {
-      Actions()->UnitCommand(viking, ABILITY_ID::GENERAL_PATROL,
-                             GetBaseLocation());
+      if (satellite_location.x != 0 && satellite_location.y != 0) {
+        Actions()->UnitCommand(viking, ABILITY_ID::GENERAL_PATROL,
+                               satellite_location);
+      } else {
+        Actions()->UnitCommand(viking, ABILITY_ID::GENERAL_PATROL,
+                               GetBaseLocation());
+      }
     }
   }
 }
@@ -983,7 +1006,7 @@ void BasicSc2Bot::ManageSecondBase() {
             });
 
         // Get current base mineral patches (those being harvested)
-        const float MIN_DISTANCE = 10.0f; // Minimum distance from current base
+        const float MIN_DISTANCE = 20.0f; // Minimum distance from current base
         const float MAX_DISTANCE = 30.0f; // Maximum distance for expansion
 
         // Find a mineral patch that's at an appropriate distance
@@ -1018,7 +1041,7 @@ void BasicSc2Bot::ManageSecondBase() {
                     << ", " << mineral_target_pos.y << std::endl;
 
           satellite_location = FindBuildLocation(
-              mineral_target_pos, ABILITY_ID::BUILD_COMMANDCENTER);
+              mineral_target_pos, ABILITY_ID::BUILD_COMMANDCENTER, 6.0f);
           std::cout << "New Satellite Location: " << satellite_location.x
                     << ", " << satellite_location.y << std::endl;
         }
