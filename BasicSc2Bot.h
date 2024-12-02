@@ -29,6 +29,8 @@ private:
   sc2::Point2D enemy_base_location; // Enemy base location when identified
   bool scout_died = false;          // Flag to indicate if the scout has died
   sc2::Point2D base_location = sc2::Point2D();
+  sc2::Point2D satellite_location = sc2::Point2D();
+  sc2::Point2D main_base_mineral_patch = sc2::Point2D();
 };
 
 #endif
