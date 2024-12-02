@@ -500,7 +500,9 @@ void BasicSc2Bot::TryBuildRefinery() {
   Units geysers = observation->GetUnits(
       Unit::Alliance::Neutral, IsUnit(UNIT_TYPEID::NEUTRAL_VESPENEGEYSER));
 
-  if (CountUnits(UNIT_TYPEID::TERRAN_REFINERY) < 2) {
+  if (CountUnits(UNIT_TYPEID::TERRAN_REFINERY) < 1 ||
+      (CountUnits(UNIT_TYPEID::TERRAN_COMMANDCENTER) >= 2 &&
+       CountUnits(UNIT_TYPEID::TERRAN_REFINERY) < 2)) {
     for (const auto &geyser : geysers) {
       // Check distance from the base
       float distance = Distance2D(geyser->pos, GetBaseLocation());
@@ -550,7 +552,10 @@ bool BasicSc2Bot::TryMorphSupplyDepot() {
 
 bool BasicSc2Bot::TryBuildBarracks() {
   // Build barracks if we have fewer than 2.
-  if (CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) < 2) {
+  if (CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) < 1) {
+    return TryBuildStructure(ABILITY_ID::BUILD_BARRACKS);
+  } else if (CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) < 2 &&
+             CountUnits(UNIT_TYPEID::TERRAN_COMMANDCENTER) >= 2) {
     return TryBuildStructure(ABILITY_ID::BUILD_BARRACKS);
   }
   return false;
@@ -925,7 +930,6 @@ Point2D BasicSc2Bot::GetBaseLocation() {
 }
 
 void BasicSc2Bot::ManageSecondBase() {
-  std::cout << "Managing second base" << std::endl;
   // Turn second CC into Orbital Command
   Units ccs = Observation()->GetUnits(
       Unit::Alliance::Self,
@@ -935,22 +939,7 @@ void BasicSc2Bot::ManageSecondBase() {
       CountUnits(UNIT_TYPEID::TERRAN_COMMANDCENTER) > 1) {
     for (const auto &cc : ccs) {
       if (Point2D(cc->pos) != base_location) {
-        std::cout << "Second base found" << std::endl
-                  << std::endl
-                  << std::endl
-                  << std::endl;
-
-        std::cout << "BOOOOOOLL: " << cc->orders.empty() << std::endl
-                  << std::endl
-                  << std::endl
-                  << std::endl
-                  << std::endl;
-        std::cout << "HEREEEEEEE" << std::endl
-                  << std::endl
-                  << std::endl
-                  << std::endl;
         if (cc->orders.empty()) {
-          std::cout << "Turning second base into Orbital Command" << std::endl;
           Actions()->UnitCommand(cc, ABILITY_ID::MORPH_ORBITALCOMMAND);
         }
       }
