@@ -296,21 +296,14 @@ bool BasicSc2Bot::IsArmyIdle() {
 }
 
 void BasicSc2Bot::SendArmyTo(const sc2::Point2D &target) {
-  sc2::Units marines = Observation()->GetUnits(
-      sc2::Unit::Alliance::Self, sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_MARINE));
-  sc2::Units hellions = Observation()->GetUnits(
-      sc2::Unit::Alliance::Self, sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_HELLION));
-  sc2::Units tanks =
-      Observation()->GetUnits(sc2::Unit::Alliance::Self,
-                              sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_SIEGETANK));
-  sc2::Units medivacs = Observation()->GetUnits(
-      sc2::Unit::Alliance::Self, sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_MEDIVAC));
-  sc2::Units vikings = Observation()->GetUnits(
-      sc2::Unit::Alliance::Self,
-      sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_VIKINGFIGHTER));
+  sc2::Units marines = Observation()->GetUnits(sc2::Unit::Alliance::Self, sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_MARINE));
+  sc2::Units hellions = Observation()->GetUnits(sc2::Unit::Alliance::Self, sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_HELLION));
+  sc2::Units tanks = Observation()->GetUnits(sc2::Unit::Alliance::Self, sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_SIEGETANK));
+  sc2::Units medivacs = Observation()->GetUnits(sc2::Unit::Alliance::Self, sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_MEDIVAC));
+  sc2::Units vikings = Observation()->GetUnits(sc2::Unit::Alliance::Self, sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_VIKINGFIGHTER));
+  sc2::Units marauders = Observation()->GetUnits(sc2::Unit::Alliance::Self, sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_MARAUDER));
 
-  sc2::Point2D rally_point = sc2::Point2D((target.x + GetBaseLocation().x) / 2,
-                                          (target.y + GetBaseLocation().y) / 2);
+  sc2::Point2D rally_point = sc2::Point2D((target.x + GetBaseLocation().x) / 2, (target.y + GetBaseLocation().y) / 2);
 
   // Send tanks first
   for (const auto &tank : tanks) {
@@ -321,6 +314,9 @@ void BasicSc2Bot::SendArmyTo(const sc2::Point2D &target) {
   for (const auto &marine : marines) {
     Actions()->UnitCommand(marine, sc2::ABILITY_ID::ATTACK_ATTACK, target);
   }
+  for (const auto &marauder : marauders) {
+    Actions()->UnitCommand(marauder, sc2::ABILITY_ID::ATTACK_ATTACK, target);
+  }
   for (const auto &hellion : hellions) {
     Actions()->UnitCommand(hellion, sc2::ABILITY_ID::ATTACK_ATTACK, target);
   }
@@ -329,6 +325,7 @@ void BasicSc2Bot::SendArmyTo(const sc2::Point2D &target) {
   for (const auto &medivac : medivacs) {
     Actions()->UnitCommand(medivac, sc2::ABILITY_ID::ATTACK_ATTACK, target);
   }
+
   for (const auto &viking : vikings) {
     Actions()->UnitCommand(viking, sc2::ABILITY_ID::ATTACK_ATTACK, target);
   }
