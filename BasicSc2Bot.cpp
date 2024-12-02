@@ -160,7 +160,7 @@ void BasicSc2Bot::ManageSCVs() {
           break; // Stop assigning SCVs once the max is reached
         }
         // Only select idle SCVs or those not assigned to other tasks
-        for (const auto &order : unit->orders) {
+        for (const auto &order : scv->orders) {
           if (order.ability_id == ABILITY_ID::BUILD_SUPPLYDEPOT || 
               order.ability_id == ABILITY_ID::BUILD_BARRACKS || 
               order.ability_id == ABILITY_ID::BUILD_FACTORY || 
@@ -361,7 +361,7 @@ bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure) {
       }
 
       // Select an idle unit that matches the required type
-      if (unit->unit_type == unit_type && !unit_is_busy) {
+      if (!unit_is_busy) {
           unit_to_build = unit;
           break;
       }
@@ -415,7 +415,7 @@ Point2D BasicSc2Bot::FindBuildLocation(Point2D base_location, ABILITY_ID ability
             // Use query->Placement() instead of Query()->Placement() if needed
             if (Query()->Placement(ability_type, current_location)) {
                 // Ensure sufficient space for tech lab if necessary
-                if (ability_type == ABILITY_ID::BUILD_FACTORY || ability_type == ABILITY_ID::BUILD_STARPORT  || ability_type == ABILITY_ID:BUILD_BARRACKS) {
+                if (ability_type == ABILITY_ID::BUILD_FACTORY || ability_type == ABILITY_ID::BUILD_STARPORT  || ability_type == ABILITY_ID::BUILD_BARRACKS) {
                     if (Query()->Placement(ability_type, Point2D(current_location.x + 3.0f, current_location.y))) {
                         return current_location;
                     }
@@ -439,7 +439,7 @@ void BasicSc2Bot::TryBuildRefinery() {
   if (CountUnits(UNIT_TYPEID::TERRAN_REFINERY) < 2) {
     for (const auto &geyser : geysers) {
       // Check distance from the base
-      float distance = Distance2D(geyser->pos, base_position);
+      float distance = Distance2D(geyser->pos, GetBaseLocation());
       if (distance < 20.0f) { // Only consider geysers within 20 units
         for (const auto &scv : scvs) {
           // Only select SCVs that are not currently harvesting or building
@@ -584,7 +584,7 @@ void BasicSc2Bot::ManageBarracks() {
       }
     } 
   }
-}
+
 
 void BasicSc2Bot::ManageFactory() {
   /*
