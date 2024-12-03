@@ -1042,14 +1042,12 @@ void BasicSc2Bot::ManageSecondBase() {
       Unit::Alliance::Self,
       IsUnit(UNIT_TYPEID::TERRAN_COMMANDCENTER)); // Get list of all CCs on our
                                                   // team
-  if (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) < 1 &&
-      CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMANDFLYING) < 1) {
+  if (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) < 1) {
     for (const auto &cc : ccs) {
       if (Point2D(cc->pos) != base_location) {
         if (cc->orders.empty()) {
           Actions()->UnitCommand(
-              cc, ABILITY_ID::MORPH_ORBITALCOMMAND); // Lower all idle Supply
-                                                     // Depots
+              cc, ABILITY_ID::MORPH_ORBITALCOMMAND); // Change to orbital command
           satellite_built = true;
         }
       }
