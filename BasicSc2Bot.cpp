@@ -47,12 +47,19 @@ void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
   switch (unit->unit_type.ToType()) {
   case UNIT_TYPEID::TERRAN_COMMANDCENTER: {
     if (CountUnits(UNIT_TYPEID::TERRAN_SCV) < 30 &&
-        CountUnits(UNIT_TYPEID::TERRAN_COMMANDCENTER) < 2 &&
         Point2D(unit->pos) == base_location) {
       Actions()->UnitCommand(unit, ABILITY_ID::TRAIN_SCV);
     }
     break;
+
   }
+  case UNIT_TYPEID::TERRAN_ORBITALCOMMAND: {
+    if (CountUnits(UNIT_TYPEID::TERRAN_SCV) < 60) {
+      Actions()->UnitCommand(unit, ABILITY_ID::TRAIN_SCV);
+    }
+    break;
+  }
+
   case UNIT_TYPEID::TERRAN_SCV: {
     // TODO: Try to prioritize some SCVs to find gas as opposed to mineral.
     const Unit *mineral_target = FindNearestMineralPatch(unit->pos);
@@ -445,9 +452,15 @@ bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure) {
   Point2D base_location = GetBaseLocation();
   Point2D build_location = Point2D();
   if (ability_type_for_structure == ABILITY_ID::BUILD_MISSILETURRET) {
-    build_location =
-        FindBuildLocation(base_location, ability_type_for_structure, 4);
-  } else {
+    build_location = FindBuildLocation(base_location, ability_type_for_structure, 4);
+  } else if (ability_type_for_structure == ABILITY_ID::BUILD_COMMANDCENTER) {
+    if (satellite_location) {
+      build_location = satellite_location;
+    } else {
+      return false;
+    }
+  } 
+  else {
     build_location =
         FindBuildLocation(base_location, ability_type_for_structure);
   }
@@ -591,9 +604,55 @@ bool BasicSc2Bot::TryBuildBarracks() {
 bool BasicSc2Bot::TryBuildNewCC() {
   // Build satellite command center to facilitate more eco. Built immediately
   // after 1st Vespene
-  GetBaseLocation(); // Set base location 1st call
   if (CountUnits(UNIT_TYPEID::TERRAN_REFINERY) > 0 && !satellite_built) {
-    return TryBuildStructure(ABILITY_ID::BUILD_COMMANDCENTER);
+    Units mineral_patches = Observation()->GetUnits(
+            Unit::Alliance::Neutral, [](const Unit &unit) {
+              return unit.unit_type == UNIT_TYPEID::NEUTRAL_MINERALFIELD ||
+                     unit.unit_type == UNIT_TYPEID::NEUTRAL_MINERALFIELD750;
+            });
+
+    // Get current base mineral patches (those being harvested)
+    const float MIN_DISTANCE = 20.0f; // Minimum distance from current base
+    const float MAX_DISTANCE = 30.0f; // Maximum distance for expansion
+
+    // Find a mineral patch that's at an appropriate distance
+    const Unit *new_mineral_target = nullptr;
+    float best_distance = std::numeric_limits<float>::max();
+
+    for (const auto &mineral : mineral_patches) {
+      float dist_from_current =
+          Distance2D(Point2D(mineral->pos), base_location);
+
+      // Skip if too close or too far
+      if (dist_from_current < MIN_DISTANCE ||
+          dist_from_current > MAX_DISTANCE) {
+        continue;
+      }
+
+      // Find the mineral patch closest to our ideal distance
+      // (which is halfway between min and max)
+      float ideal_distance = (MIN_DISTANCE + MAX_DISTANCE) / 2;
+      float distance_from_ideal =
+          std::abs(dist_from_current - ideal_distance);
+
+      if (distance_from_ideal < best_distance) {
+        best_distance = distance_from_ideal;
+        new_mineral_target = mineral;
+      }
+    }
+
+    if (new_mineral_target) {
+      Point2D mineral_target_pos = Point2D(new_mineral_target->pos);
+      std::cout << "New Mineral Target Pos: " << mineral_target_pos.x
+                << ", " << mineral_target_pos.y << std::endl;
+
+      satellite_location = FindBuildLocation(
+          mineral_target_pos, ABILITY_ID::BUILD_COMMANDCENTER, 6.0f);
+      std::cout << "New Satellite Location: " << satellite_location.x
+                << ", " << satellite_location.y << std::endl;
+
+      return TryBuildStructure(ABILITY_ID::BUILD_COMMANDCENTER)
+    }
   }
   return false;
 }
@@ -977,6 +1036,8 @@ Point2D BasicSc2Bot::GetBaseLocation() {
 
 void BasicSc2Bot::ManageSecondBase() {
   // Turn second CC into Orbital Command
+  // (1) - If the second base is not morphed into an Orbital Command, do so immediately.
+  // (2) - If the second base is an Orbital Command, then train MULES, SCVs
   Units ccs = Observation()->GetUnits(
       Unit::Alliance::Self,
       IsUnit(UNIT_TYPEID::TERRAN_COMMANDCENTER)); // Get list of all CCs on our
@@ -993,92 +1054,17 @@ void BasicSc2Bot::ManageSecondBase() {
         }
       }
     }
-  } else if (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 0) {
+  } else if (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 0) { // Train MULES, SCVs if we have orbital command.
     const Unit *orbital =
         Observation()
             ->GetUnits(Unit::Alliance::Self,
                        IsUnit(UNIT_TYPEID::TERRAN_ORBITALCOMMAND))
             .front(); // Get Oribtal Command
     if (orbital->orders.empty()) {
-      if (satellite_location == Point2D()) {
-        // Lift ship.
-        Actions()->UnitCommand(orbital, ABILITY_ID::LIFT_ORBITALCOMMAND);
-
-        // Find all mineral patches using a filter that includes both types
-        Units mineral_patches = Observation()->GetUnits(
-            Unit::Alliance::Neutral, [](const Unit &unit) {
-              return unit.unit_type == UNIT_TYPEID::NEUTRAL_MINERALFIELD ||
-                     unit.unit_type == UNIT_TYPEID::NEUTRAL_MINERALFIELD750;
-            });
-
-        // Get current base mineral patches (those being harvested)
-        const float MIN_DISTANCE = 20.0f; // Minimum distance from current base
-        const float MAX_DISTANCE = 30.0f; // Maximum distance for expansion
-
-        // Find a mineral patch that's at an appropriate distance
-        const Unit *new_mineral_target = nullptr;
-        float best_distance = std::numeric_limits<float>::max();
-
-        for (const auto &mineral : mineral_patches) {
-          float dist_from_current =
-              Distance2D(Point2D(mineral->pos), base_location);
-
-          // Skip if too close or too far
-          if (dist_from_current < MIN_DISTANCE ||
-              dist_from_current > MAX_DISTANCE) {
-            continue;
-          }
-
-          // Find the mineral patch closest to our ideal distance
-          // (which is halfway between min and max)
-          float ideal_distance = (MIN_DISTANCE + MAX_DISTANCE) / 2;
-          float distance_from_ideal =
-              std::abs(dist_from_current - ideal_distance);
-
-          if (distance_from_ideal < best_distance) {
-            best_distance = distance_from_ideal;
-            new_mineral_target = mineral;
-          }
-        }
-
-        if (new_mineral_target) {
-          Point2D mineral_target_pos = Point2D(new_mineral_target->pos);
-          std::cout << "New Mineral Target Pos: " << mineral_target_pos.x
-                    << ", " << mineral_target_pos.y << std::endl;
-
-          satellite_location = FindBuildLocation(
-              mineral_target_pos, ABILITY_ID::BUILD_COMMANDCENTER, 6.0f);
-          std::cout << "New Satellite Location: " << satellite_location.x
-                    << ", " << satellite_location.y << std::endl;
-        }
-
-      } else if (CountUnits(UNIT_TYPEID::TERRAN_MULE) < 2) {
-        // Train MULE if fewer than 10.
+      if (CountUnits(UNIT_TYPEID::TERRAN_MULE) < 2) {
+        // Train MULE if fewer than 2.
         Actions()->UnitCommand(orbital, ABILITY_ID::EFFECT_CALLDOWNMULE, FindNearestMineralPatch(satellite_location));
       }
-      else{
-        Actions()->UnitCommand(orbital, ABILITY_ID::TRAIN_SCV);
-      }
     }
-  } else if (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMANDFLYING) > 0) {
-    // (2) If not at 2nd base loc, go there.
-    // (3) If at 2nd base loc but lifted, touch down.
-    std::cout << "Landing Orbital Command" << std::endl
-              << std::endl
-              << std::endl
-              << std::endl;
-    const Unit *orbital =
-        Observation()
-            ->GetUnits(Unit::Alliance::Self,
-                       IsUnit(UNIT_TYPEID::TERRAN_ORBITALCOMMANDFLYING))
-            .front(); // Get Oribtal Command
-    if (Point2D(orbital->pos) != satellite_location) {
-      // Move flying orbital command to satellite location
-      Actions()->UnitCommand(orbital, ABILITY_ID::LAND_ORBITALCOMMAND,
-                             satellite_location);
-    } else {
-      // Land orbital command if it is in the correct location
-      Actions()->UnitCommand(orbital, ABILITY_ID::LAND_ORBITALCOMMAND);
-    }
-  }
+  } 
 }
