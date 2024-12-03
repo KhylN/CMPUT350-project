@@ -246,8 +246,7 @@ void BasicSc2Bot::ManageTroopsAndBuildings() {
   TryMorphSupplyDepot();
   ManageBarracks();
 
-  // TryBuildEnggBay();
-  // TryBuildMissileTurret();
+  TryBuildMissileTurret();
 
   TryBuildStarport();
   ManageStarport();
@@ -573,8 +572,18 @@ void BasicSc2Bot::TryBuildRefinery() {
                               // satellite base
         for (const auto &scv : scvs) {
           // only select the scv's that are within 20 units of the satellite
-          // base
-          if (Distance2D(scv->pos, satellite_location) < 20.0f) {
+          // base and where the scv order is not to build a refinery
+
+          bool isBuildingRefinery = false;
+          for (const auto &order : scv->orders) {
+            if (order.ability_id == ABILITY_ID::BUILD_REFINERY) {
+              isBuildingRefinery = true;
+              break;
+            }
+          }
+
+          if (Distance2D(scv->pos, satellite_location) < 20.0f &&
+              !isBuildingRefinery) {
             Actions()->UnitCommand(scv, ABILITY_ID::BUILD_REFINERY, geyser);
             break;
           }
@@ -708,8 +717,8 @@ bool BasicSc2Bot::TryBuildMissileTurret() {
   // Build MissileTurret if we have an Engineering Bay (prereq) and if we have
   // no more than 3.
   if (CountUnits(UNIT_TYPEID::TERRAN_ENGINEERINGBAY) > 0 &&
-      CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) > 1 &&
-      CountUnits(UNIT_TYPEID::TERRAN_MISSILETURRET) < 3) {
+      CountUnits(UNIT_TYPEID::TERRAN_MISSILETURRET) < 3 &&
+      CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 0) {
     return TryBuildStructure(ABILITY_ID::BUILD_MISSILETURRET);
   }
   return false;
@@ -745,6 +754,8 @@ void BasicSc2Bot::ManageAllTroops() {
       if (satellite_location.x != 0 && satellite_location.y != 0) {
         Actions()->UnitCommand(tank, ABILITY_ID::MOVE_MOVE, satellite_location);
       } else {
+        // convert sieve tanks to sieged mode
+        Actions()->UnitCommand(tank, ABILITY_ID::MORPH_SIEGEMODE);
         Actions()->UnitCommand(tank, ABILITY_ID::GENERAL_PATROL,
                                GetBaseLocation());
       }
@@ -822,7 +833,7 @@ void BasicSc2Bot::ManageBarracks() {
       Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_BARRACKS));
   if (satellite_built) {
     for (const auto &barrack : barracks) {
-      if (CountUnits(UNIT_TYPEID::TERRAN_MARINE) < 5) {
+      if (CountUnits(UNIT_TYPEID::TERRAN_MARINE) < 10) {
         Actions()->UnitCommand(barrack, ABILITY_ID::TRAIN_MARINE);
       }
     }
