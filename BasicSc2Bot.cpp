@@ -454,7 +454,7 @@ bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure) {
   if (ability_type_for_structure == ABILITY_ID::BUILD_MISSILETURRET) {
     build_location = FindBuildLocation(base_location, ability_type_for_structure, 4);
   } else if (ability_type_for_structure == ABILITY_ID::BUILD_COMMANDCENTER) {
-    if (satellite_location) {
+    if (satellite_location != Point2D()) {
       build_location = satellite_location;
     } else {
       return false;
@@ -542,7 +542,7 @@ void BasicSc2Bot::TryBuildRefinery() {
       Unit::Alliance::Neutral, IsUnit(UNIT_TYPEID::NEUTRAL_VESPENEGEYSER));
 
   if (CountUnits(UNIT_TYPEID::TERRAN_REFINERY) < 1 ||
-      (CountUnits(UNIT_TYPEID::TERRAN_COMMANDCENTER) >= 2 &&
+      (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) < 1 &&
        CountUnits(UNIT_TYPEID::TERRAN_REFINERY) < 2)) {
     for (const auto &geyser : geysers) {
       // Check distance from the base
@@ -591,13 +591,10 @@ bool BasicSc2Bot::TryMorphSupplyDepot() {
 }
 
 bool BasicSc2Bot::TryBuildBarracks() {
-  // Build barracks if we have fewer than 2.
+  // Build barracks if we have fewer than 1.
   if (CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) < 1) {
     return TryBuildStructure(ABILITY_ID::BUILD_BARRACKS);
-  } else if (CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) < 2 &&
-             CountUnits(UNIT_TYPEID::TERRAN_COMMANDCENTER) >= 2) {
-    return TryBuildStructure(ABILITY_ID::BUILD_BARRACKS);
-  }
+  } 
   return false;
 }
 
@@ -658,28 +655,10 @@ bool BasicSc2Bot::TryBuildNewCC() {
 }
 
 bool BasicSc2Bot::TryBuildEnggBay() {
-  // Build Engineering Bay if we have at least one barracks and if we do not yet
-  // have an Engg Bay.
-  Units barracks = Observation()->GetUnits(
-      Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_BARRACKS));
-
-  bool all_barracks_have_techlab = true;
-
+  // Build Engineering Bay if we have built or satellite base.
   // Check if all barracks have a tech lab
-  for (const auto &barrack : barracks) {
-    const Unit *add_on = Observation()->GetUnit(barrack->add_on_tag);
-    if (barrack->add_on_tag == NullTag) {
-      all_barracks_have_techlab = false;
-      break;
-    } else if (add_on &&
-               add_on->unit_type != UNIT_TYPEID::TERRAN_BARRACKSTECHLAB) {
-      all_barracks_have_techlab = false;
-      break;
-    }
-  }
-
   if (CountUnits(UNIT_TYPEID::TERRAN_ENGINEERINGBAY) < 1 &&
-      CountUnits(UNIT_TYPEID::TERRAN_MARINE) > 9 && all_barracks_have_techlab) {
+      CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND > 0)) {
     return TryBuildStructure(ABILITY_ID::BUILD_ENGINEERINGBAY);
   }
   return false;
