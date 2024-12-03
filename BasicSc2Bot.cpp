@@ -542,7 +542,7 @@ void BasicSc2Bot::TryBuildRefinery() {
       Unit::Alliance::Neutral, IsUnit(UNIT_TYPEID::NEUTRAL_VESPENEGEYSER));
 
   if (CountUnits(UNIT_TYPEID::TERRAN_REFINERY) < 1 ||
-      (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) < 1 &&
+      (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 0 &&
        CountUnits(UNIT_TYPEID::TERRAN_REFINERY) < 2)) {
     for (const auto &geyser : geysers) {
       // Check distance from the base
@@ -648,7 +648,7 @@ bool BasicSc2Bot::TryBuildNewCC() {
       std::cout << "New Satellite Location: " << satellite_location.x
                 << ", " << satellite_location.y << std::endl;
 
-      return TryBuildStructure(ABILITY_ID::BUILD_COMMANDCENTER)
+      return TryBuildStructure(ABILITY_ID::BUILD_COMMANDCENTER);
     }
   }
   return false;
@@ -658,7 +658,7 @@ bool BasicSc2Bot::TryBuildEnggBay() {
   // Build Engineering Bay if we have built or satellite base.
   // Check if all barracks have a tech lab
   if (CountUnits(UNIT_TYPEID::TERRAN_ENGINEERINGBAY) < 1 &&
-      CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND > 0)) {
+      CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 0) {
     return TryBuildStructure(ABILITY_ID::BUILD_ENGINEERINGBAY);
   }
   return false;
