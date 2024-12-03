@@ -282,8 +282,7 @@ void BasicSc2Bot::ManageTroopsAndBuildings() {
   TryBuildFactory();
   ManageFactory();
 
-  int strength = MilitaryStrength();
-  std::cout << "Military Strength: " << strength << std::endl;
+  bool can_attack = MilitaryStrength();
   std::cout << "Marines: " << CountUnits(UNIT_TYPEID::TERRAN_MARINE)
             << " Hellions: " << CountUnits(UNIT_TYPEID::TERRAN_HELLION)
             << " Vikings: " << CountUnits(UNIT_TYPEID::TERRAN_VIKINGFIGHTER)
@@ -291,13 +290,11 @@ void BasicSc2Bot::ManageTroopsAndBuildings() {
             << " Tanks: " << CountUnits(UNIT_TYPEID::TERRAN_SIEGETANK)
             << std::endl;
 
-  if (strength > THRESH) {
+  if (can_attack) {
     std::cout << "Launching attack! Wave: " << current_attack_wave_
               << std::endl;
     LaunchAttack();
   } else {
-    std::cout << "Not strong enough to attack yet. Current: " << strength
-              << " Threshold: " << THRESH << std::endl;
     ManageAllTroops();
   }
 }
@@ -316,58 +313,6 @@ void BasicSc2Bot::LaunchAttack() {
   if (enemy_base_location.x != 0 && enemy_base_location.y != 0) {
     SendArmyTo(enemy_base_location);
   }
-}
-
-bool BasicSc2Bot::IsArmyIdle() {
-  sc2::Units marines = Observation()->GetUnits(
-      sc2::Unit::Alliance::Self, sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_MARINE));
-  sc2::Units hellions = Observation()->GetUnits(
-      sc2::Unit::Alliance::Self, sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_HELLION));
-  sc2::Units tanks =
-      Observation()->GetUnits(sc2::Unit::Alliance::Self,
-                              sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_SIEGETANK));
-  sc2::Units medivacs = Observation()->GetUnits(
-      sc2::Unit::Alliance::Self, sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_MEDIVAC));
-  sc2::Units vikings = Observation()->GetUnits(
-      sc2::Unit::Alliance::Self,
-      sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_VIKINGFIGHTER));
-
-  std::cout << "Checking if army is idle" << std::endl;
-
-  // output the orders of each unit
-  for (const auto &marine : marines) {
-    for (const auto &order : marine->orders) {
-      std::cout << "Marine order: " << order.ability_id << std::endl;
-    }
-  }
-
-  for (const auto &marine : marines) {
-    if (!marine->orders.empty()) {
-      return false;
-    }
-  }
-  for (const auto &hellion : hellions) {
-    if (!hellion->orders.empty()) {
-      return false;
-    }
-  }
-  for (const auto &tank : tanks) {
-    if (!tank->orders.empty()) {
-      return false;
-    }
-  }
-  for (const auto &medivac : medivacs) {
-    if (!medivac->orders.empty()) {
-      return false;
-    }
-  }
-  for (const auto &viking : vikings) {
-    if (!viking->orders.empty()) {
-      return false;
-    }
-  }
-
-  return true;
 }
 
 void BasicSc2Bot::SendArmyTo(const sc2::Point2D &target) {
@@ -1063,13 +1008,17 @@ int BasicSc2Bot::CountUnits(UNIT_TYPEID unit_type) {
 
 int BasicSc2Bot::MilitaryStrength() {
   int marines = CountUnits(UNIT_TYPEID::TERRAN_MARINE);
-  int hellions = CountUnits(UNIT_TYPEID::TERRAN_HELLION);
-  int vikings = CountUnits(UNIT_TYPEID::TERRAN_VIKINGFIGHTER);
   int medivacs = CountUnits(UNIT_TYPEID::TERRAN_MEDIVAC);
   int tanks = CountUnits(UNIT_TYPEID::TERRAN_SIEGETANK);
 
-  // Weight each unit type based on their relative strength/importance
-  return marines + (hellions * 2) + (vikings * 2) + medivacs + (tanks * 3);
+  bool can_attack = false;
+
+  // if we have 45 marines, 6 siege tanks, and 2 medivacs
+  if (marines >= 45 && tanks >= 6 && medivacs >= 2) {
+    can_attack = true;
+  }
+
+  return can_attack;
 }
 
 // Function to get the location fo the commance center
