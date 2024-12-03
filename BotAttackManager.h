@@ -4,6 +4,6 @@
 void LaunchAttack();
 bool IsArmyIdle();
 void SendArmyTo(const sc2::Point2D &target);
-
+bool HasSupportableGroundUnits();
 
 #endif
