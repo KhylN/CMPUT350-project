@@ -634,8 +634,8 @@ bool BasicSc2Bot::TryBuildNewCC() {
             });
 
     // Get current base mineral patches (those being harvested)
-    const float MIN_DISTANCE = 20.0f; // Minimum distance from current base
-    const float MAX_DISTANCE = 30.0f; // Maximum distance for expansion
+    const float MIN_DISTANCE = 17.0f; // Minimum distance from current base
+    const float MAX_DISTANCE = 35.0f; // Maximum distance for expansion
 
     // Find a mineral patch that's at an appropriate distance
     const Unit *new_mineral_target = nullptr;
@@ -703,7 +703,7 @@ bool BasicSc2Bot::TryBuildMissileTurret() {
 bool BasicSc2Bot::TryBuildStarport() {
   // Build Starport if we don't have one and if we have a Factory.
   if (CountUnits(UNIT_TYPEID::TERRAN_STARPORT) < 2 &&
-      CountUnits(UNIT_TYPEID::TERRAN_REFINERY) > 3 {
+      CountUnits(UNIT_TYPEID::TERRAN_REFINERY) > 3 ){
     return TryBuildStructure(ABILITY_ID::BUILD_STARPORT);
   }
   return false;
@@ -871,8 +871,8 @@ void BasicSc2Bot::ManageFactory() {
       // If Factory has a Tech Lab, order it to produce Hellions and Siege
       // Tanks
 
-      if (CountUnits(UNIT_TYPEID::TERRAN_SIEGETANK) >= 5
-          factory->orders.empty()) {
+      if (CountUnits(UNIT_TYPEID::TERRAN_SIEGETANK) >= 5 && 
+      factory->orders.empty()) {
         // Produce Hellions if fewer than 5 exist
         Actions()->UnitCommand(factory, ABILITY_ID::TRAIN_HELLION);
       } else {
