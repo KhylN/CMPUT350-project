@@ -553,7 +553,7 @@ void BasicSc2Bot::TryBuildRefinery() {
   Units geysers = observation->GetUnits(
       Unit::Alliance::Neutral, IsUnit(UNIT_TYPEID::NEUTRAL_VESPENEGEYSER));
 
-  if (CountUnits(UNIT_TYPEID::TERRAN_REFINERY) < 1 ||
+  if (CountUnits(UNIT_TYPEID::TERRAN_REFINERY) < 2 ||
       (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 0 &&
        CountUnits(UNIT_TYPEID::TERRAN_REFINERY) < 2)) {
     for (const auto &geyser : geysers) {
@@ -571,7 +571,7 @@ void BasicSc2Bot::TryBuildRefinery() {
         }
       }
     }
-  } else if (CountUnits(UNIT_TYPEID::TERRAN_REFINERY) > 4 &&
+  } else if (CountUnits(UNIT_TYPEID::TERRAN_REFINERY) < 4 &&
              CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 0) {
     for (const auto &geyser : geysers) {
       // Check distance from the SATELLITE base
@@ -680,10 +680,10 @@ bool BasicSc2Bot::TryBuildNewCC() {
       std::cout << "New Mineral Target Pos: " << mineral_target_pos.x << ", "
                 << mineral_target_pos.y << std::endl;
 
-      satellite_location = FindBuildLocation(
-          mineral_target_pos, ABILITY_ID::BUILD_COMMANDCENTER, 6.0f);
-      std::cout << "New Satellite Location: " << satellite_location.x << ", "
-                << satellite_location.y << std::endl;
+      if (satellite_location.x == 0 && satellite_location.y == 0) {
+        satellite_location = FindBuildLocation(
+            mineral_target_pos, ABILITY_ID::BUILD_COMMANDCENTER, 6.0f);
+      }
 
       return TryBuildStructure(ABILITY_ID::BUILD_COMMANDCENTER);
     }
