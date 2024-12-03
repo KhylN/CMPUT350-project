@@ -589,11 +589,20 @@ void BasicSc2Bot::TryBuildRefinery() {
 
 bool BasicSc2Bot::TryBuildSupplyDepot() {
   const ObservationInterface *observation = Observation();
-  if (observation->GetFoodUsed() > observation->GetFoodCap() - 2) {
-        return TryBuildStructure(ABILITY_ID::BUILD_SUPPLYDEPOT);
-      } // Build Supply Depot IFF we have already built the 2nd Command Center
+
+  // Calculate current and planned supply capacity
+  int current_supply_cap = observation->GetFoodCap();
+  int used_supply = observation->GetFoodUsed();
+  int supply_depots_in_progress = CountUnits(UNIT_TYPEID::TERRAN_SUPPLYDEPOT);
+  
+  // Avoid building if there are already enough depots being built
+  if (used_supply > current_supply_cap - 2 && supply_depots_in_progress < 1) {
+    return TryBuildStructure(ABILITY_ID::BUILD_SUPPLYDEPOT);
+  }
+
   return false;
 }
+
 
 // Lowers all non-lowered supply depots
 bool BasicSc2Bot::TryMorphSupplyDepot() {
