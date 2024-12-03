@@ -50,7 +50,7 @@ void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
       // Prioritize building new Orbital Command if we do not have one.
       Actions()->UnitCommand(unit, ABILITY_ID::MORPH_ORBITALCOMMAND);
       break;
-    } else if (CountUnits(UNIT_TYPEID::TERRAN_SCV) < 30 &&
+    } else if (CountUnits(UNIT_TYPEID::TERRAN_SCV) < 15 &&
                // Build SCVs all other times.
                Point2D(unit->pos) == base_location) {
       Actions()->UnitCommand(unit, ABILITY_ID::TRAIN_SCV);
@@ -62,7 +62,7 @@ void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
       Actions()->UnitCommand(unit, ABILITY_ID::EFFECT_CALLDOWNMULE,
                              FindNearestMineralPatch(satellite_location));
     }
-    if (CountUnits(UNIT_TYPEID::TERRAN_SCV) < 60) {
+    if (CountUnits(UNIT_TYPEID::TERRAN_SCV) < 30) {
       Actions()->UnitCommand(unit, ABILITY_ID::TRAIN_SCV);
     }
     break;
