@@ -46,14 +46,21 @@ void BasicSc2Bot::OnStep() {
 void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
   switch (unit->unit_type.ToType()) {
   case UNIT_TYPEID::TERRAN_COMMANDCENTER: {
-    if (CountUnits(UNIT_TYPEID::TERRAN_SCV) < 30 &&
+    if (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 0) {
+      // Prioritize building new Orbital Command if we do not have one.
+      Actions()->UnitCommand(unit, ABILITY_ID::MORPH_ORBITALCOMMAND);
+      break;
+    } else if (CountUnits(UNIT_TYPEID::TERRAN_SCV) < 30 &&
+      // Build SCVs all other times.
         Point2D(unit->pos) == base_location) {
       Actions()->UnitCommand(unit, ABILITY_ID::TRAIN_SCV);
     }
     break;
-
   }
   case UNIT_TYPEID::TERRAN_ORBITALCOMMAND: {
+    if (CountUnits(UNIT_TYPEID::TERRAN_MULE) < 4) {
+      Actions()->UnitCommand(unit, ABILITY_ID::EFFECT_CALLDOWNMULE, FindNearestMineralPatch(satellite_location));
+    }
     if (CountUnits(UNIT_TYPEID::TERRAN_SCV) < 60) {
       Actions()->UnitCommand(unit, ABILITY_ID::TRAIN_SCV);
     }
@@ -232,6 +239,8 @@ void BasicSc2Bot::ManageTroopsAndBuildings() {
 
   TryBuildNewCC();
   ManageSecondBase();
+
+  TryBuildEnggBay();
 
   TryBuildSupplyDepot();
   TryMorphSupplyDepot();
@@ -546,8 +555,24 @@ void BasicSc2Bot::TryBuildRefinery() {
        CountUnits(UNIT_TYPEID::TERRAN_REFINERY) < 2)) {
     for (const auto &geyser : geysers) {
       // Check distance from the base
-      float distance = Distance2D(geyser->pos, GetBaseLocation());
+      float distance = Distance2D(geyser->pos, base_location);
       if (distance < 20.0f) { // Only consider geysers within 20 units
+        for (const auto &scv : scvs) {
+          // Only select SCVs that are not currently harvesting or building
+          if (scv->orders.empty() ||
+              (scv->orders.front().ability_id != ABILITY_ID::HARVEST_GATHER &&
+               scv->orders.front().ability_id != ABILITY_ID::HARVEST_RETURN)) {
+            Actions()->UnitCommand(scv, ABILITY_ID::BUILD_REFINERY, geyser);
+            break;
+          }
+        }
+      }
+    }
+  } else if (CountUnits(UNIT_TYPEID::TERRAN_REFINERY) > 4 && CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 0) {
+    for (const auto &geyser : geysers) {
+      // Check distance from the SATELLITE base
+      float distance = Distance2D(geyser->pos, satellite_location);
+      if (distance < 20.0f) { // Only consider geysers within 20 units of the satellite base
         for (const auto &scv : scvs) {
           // Only select SCVs that are not currently harvesting or building
           if (scv->orders.empty() ||
@@ -677,56 +702,16 @@ bool BasicSc2Bot::TryBuildMissileTurret() {
 
 bool BasicSc2Bot::TryBuildStarport() {
   // Build Starport if we don't have one and if we have a Factory.
-
-  Units barracks = Observation()->GetUnits(
-      Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_BARRACKS));
-
-  bool all_barracks_have_techlab = true;
-
-  // Check if all barracks have a tech lab
-  for (const auto &barrack : barracks) {
-    const Unit *add_on = Observation()->GetUnit(barrack->add_on_tag);
-    if (barrack->add_on_tag == NullTag) {
-      all_barracks_have_techlab = false;
-      break;
-    } else if (add_on &&
-               add_on->unit_type != UNIT_TYPEID::TERRAN_BARRACKSTECHLAB) {
-      all_barracks_have_techlab = false;
-      break;
-    }
-  }
-
-  if (CountUnits(UNIT_TYPEID::TERRAN_STARPORT) < 1 &&
-      CountUnits(UNIT_TYPEID::TERRAN_FACTORY) > 0 &&
-      all_barracks_have_techlab) {
+  if (CountUnits(UNIT_TYPEID::TERRAN_STARPORT) < 2 &&
+      CountUnits(UNIT_TYPEID::TERRAN_REFINERY) > 3 {
     return TryBuildStructure(ABILITY_ID::BUILD_STARPORT);
   }
   return false;
 }
 
 bool BasicSc2Bot::TryBuildFactory() {
-  // Build Factory if we have built the 20 Marines.
-
-  Units barracks = Observation()->GetUnits(
-      Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_BARRACKS));
-
-  bool all_barracks_have_techlab = true;
-
-  // Check if all barracks have a tech lab
-  for (const auto &barrack : barracks) {
-    const Unit *add_on = Observation()->GetUnit(barrack->add_on_tag);
-    if (barrack->add_on_tag == NullTag) {
-      all_barracks_have_techlab = false;
-      break;
-    } else if (add_on &&
-               add_on->unit_type != UNIT_TYPEID::TERRAN_BARRACKSTECHLAB) {
-      all_barracks_have_techlab = false;
-      break;
-    }
-  }
-
-  if (CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) > 1 &&
-      all_barracks_have_techlab) {
+  // Build Factory if we have built the satellite base.
+  if (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 0) {
     if (CountUnits(UNIT_TYPEID::TERRAN_FACTORY) < 1) {
       return TryBuildStructure(ABILITY_ID::BUILD_FACTORY);
     }
@@ -735,7 +720,6 @@ bool BasicSc2Bot::TryBuildFactory() {
 }
 
 // TROOP MANAGEMENT
-
 void BasicSc2Bot::ManageAllTroops() {
 
   // SCOUTING
@@ -858,18 +842,9 @@ void BasicSc2Bot::ManageBarracks() {
       Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_BARRACKS));
   if (satellite_built) {
     for (const auto &barrack : barracks) {
-      const Unit *add_on = Observation()->GetUnit(barrack->add_on_tag);
-      if (barrack->add_on_tag == NullTag) {
-        Actions()->UnitCommand(barrack, ABILITY_ID::BUILD_TECHLAB);
-      } else if (add_on &&
-                 add_on->unit_type == UNIT_TYPEID::TERRAN_BARRACKSTECHLAB &&
-                 CountUnits(UNIT_TYPEID::TERRAN_MARINE) < 10) {
+      if (CountUnits(UNIT_TYPEID::TERRAN_MARINE) < 5) {
         Actions()->UnitCommand(barrack, ABILITY_ID::TRAIN_MARINE);
-      } else if (add_on &&
-                 add_on->unit_type == UNIT_TYPEID::TERRAN_BARRACKSTECHLAB &&
-                 CountUnits(UNIT_TYPEID::TERRAN_MARAUDER) < 10) {
-        Actions()->UnitCommand(barrack, ABILITY_ID::TRAIN_MARAUDER);
-      }
+      } 
     }
   }
 }
@@ -887,16 +862,16 @@ void BasicSc2Bot::ManageFactory() {
 
   for (const auto &factory : factories) {
     const Unit *add_on = Observation()->GetUnit(factory->add_on_tag);
-    if (factory->add_on_tag == NullTag) {
-      // If Factory has no add-on, order it to build a Tech Lab
+    if (factory->add_on_tag == NullTag &&
+        CountUnits(UNIT_TYPEID::TERRAN_REFINERY) > 3) {
+      // If Factory has no add-on AND we have the 4 refineries, order it to build a Tech Lab
       Actions()->UnitCommand(factory, ABILITY_ID::BUILD_TECHLAB);
     } else if (add_on &&
                add_on->unit_type == UNIT_TYPEID::TERRAN_FACTORYTECHLAB) {
       // If Factory has a Tech Lab, order it to produce Hellions and Siege
       // Tanks
 
-      if (CountUnits(UNIT_TYPEID::TERRAN_SIEGETANK) >= 5 &&
-          CountUnits(UNIT_TYPEID::TERRAN_HELLION) < 5 &&
+      if (CountUnits(UNIT_TYPEID::TERRAN_SIEGETANK) >= 5
           factory->orders.empty()) {
         // Produce Hellions if fewer than 5 exist
         Actions()->UnitCommand(factory, ABILITY_ID::TRAIN_HELLION);
@@ -1031,17 +1006,5 @@ void BasicSc2Bot::ManageSecondBase() {
         }
       }
     }
-  } else if (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 0) { // Train MULES, SCVs if we have orbital command.
-    const Unit *orbital =
-        Observation()
-            ->GetUnits(Unit::Alliance::Self,
-                       IsUnit(UNIT_TYPEID::TERRAN_ORBITALCOMMAND))
-            .front(); // Get Oribtal Command
-    if (orbital->orders.empty()) {
-      if (CountUnits(UNIT_TYPEID::TERRAN_MULE) < 2) {
-        // Train MULE if fewer than 2.
-        Actions()->UnitCommand(orbital, ABILITY_ID::EFFECT_CALLDOWNMULE, FindNearestMineralPatch(satellite_location));
-      }
-    }
-  } 
+  }
 }
