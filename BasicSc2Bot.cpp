@@ -208,7 +208,8 @@ void BasicSc2Bot::ManageSCVs() {
             order.ability_id == ABILITY_ID::BUILD_FACTORY ||
             order.ability_id == ABILITY_ID::BUILD_STARPORT ||
             order.ability_id == ABILITY_ID::BUILD_REFINERY ||
-            order.ability_id == ABILITY_ID::BUILD_COMMANDCENTER) {
+            order.ability_id == ABILITY_ID::BUILD_COMMANDCENTER ||
+            order.ability_id == ABILITY_ID::BUILD_ENGINEERINGBAY) {
             continue;
           } else {
             Actions()->UnitCommand(scv, ABILITY_ID::SMART, refinery);
@@ -438,7 +439,8 @@ bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure) {
           order.ability_id == ABILITY_ID::BUILD_FACTORY ||
           order.ability_id == ABILITY_ID::BUILD_STARPORT ||
           order.ability_id == ABILITY_ID::BUILD_REFINERY ||
-          order.ability_id == ABILITY_ID::BUILD_COMMANDCENTER) {
+          order.ability_id == ABILITY_ID::BUILD_COMMANDCENTER ||
+          order.ability_id == ABILITY_ID::BUILD_ENGINEERINGBAY) {
         unit_is_busy = true;
         break;
       }
