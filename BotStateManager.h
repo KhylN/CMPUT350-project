@@ -126,22 +126,19 @@ class StateManager {
             enemy_base_location = new_location;
         }
 
+        // Set Satellite Base Location (Dictated by Scout)
+        sc2::Point2D SetSatelliteBaseLocation(sc2::Point2D new_location) {
+            satellite_location = new_location;
+        }
+
         // Get Enemy Base Location if it exists. Otherwise, return a blank Point2D.
         sc2::Point2D GetEnemyBaseLocation() {
-            if (enemy_base_location != Point2D()) {
-                return base_location;
-            } 
-            // Return base location
-            return Point2D();
+            return base_location;
         }
 
         // Get Satellite Base Location if it exists. Otherwise, return a blank Point2D.
         sc2::Point2D GetSatelliteLocation() {
-            if (satellite_location != Point2D()) {
-                return satellite_location;
-            } 
-            // Return base location
-            return Point2D();
+            return satellite_location;
         }
 
         // Get Resource Locations
@@ -183,6 +180,7 @@ class StateManager {
             return (num_marines >= 40 && num_tanks >= 6 && num_medivacs >= 2);
         }
 
+        size_t current_attack_wave_ = 1;
     private:
         // Helper funciton to determine how many of a cetain unit we have
         int CountUnits(UNIT_TYPEID unit_type) const {
@@ -216,7 +214,6 @@ class StateManager {
         bool stim_done = shields_done = false;
 
         const int THRESH = 30;
-        size_t current_attack_wave_ = 1;
         std::vector<sc2::Point2D> potential_enemy_locations_;
 }
 

@@ -15,6 +15,7 @@ void BasicSc2Bot::OnStep() {
     ManageTroopsAndBuildings();
   }
 }
+
 // Will run every time a unit is idle
 void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
   switch (unit->unit_type.ToType()) {
@@ -29,7 +30,7 @@ void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
   case UNIT_TYPEID::TERRAN_ORBITALCOMMAND: {
     if (GameState.GetUnitCount(UNIT_TYPEID::TERRAN_MULE) < 4) {
       Actions()->UnitCommand(unit, ABILITY_ID::EFFECT_CALLDOWNMULE,
-                             GameState.FindNearestMineralPatch(satellite_location));
+                             GameState.FindNearestMineralPatch(GameState.GetSatelliteLocation()));
     }
     if (unit->assigned_harvesters < 21) {
       Actions()->UnitCommand(unit, ABILITY_ID::TRAIN_SCV);
@@ -98,7 +99,7 @@ void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
       } else {
         if (marine->orders.empty() && !is_attacking) {
           Actions()->UnitCommand(marine, ABILITY_ID::MOVE_MOVE,
-                                 satellite_location);
+                                 GameState.GetSatelliteLocation());
         }
       }
     }
@@ -362,8 +363,8 @@ bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure) {
     build_location =
         FindBuildLocation(base_location, ability_type_for_structure, 4);
   } else if (ability_type_for_structure == ABILITY_ID::BUILD_COMMANDCENTER) {
-    if (satellite_location != Point2D()) {
-      build_location = satellite_location;
+    if (GameState.GetSatelliteLocation() != Point2D()) {
+      build_location = GameState.GetSatelliteLocation();
     } else {
       return false;
     }
@@ -479,7 +480,7 @@ void BasicSc2Bot::TryBuildRefinery() {
              GameState.GetUpgradeStatus(UPGRADE_ID::COMBATSHIELD) {
     for (const auto &geyser : geysers) {
       // Check distance from the SATELLITE base
-      float distance = Distance2D(geyser->pos, satellite_location);
+      float distance = Distance2D(geyser->pos, GameState.GetSatelliteLocation());
       if (distance < 20.0f) { // Only consider geysers within 20 units of the
                               // satellite base
         for (const auto &scv : scvs) {
@@ -494,7 +495,7 @@ void BasicSc2Bot::TryBuildRefinery() {
             }
           }
 
-          if (Distance2D(scv->pos, satellite_location) < 20.0f &&
+          if (Distance2D(scv->pos, GameState.GetSatelliteLocation()) < 20.0f &&
               !isBuildingRefinery) {
             Actions()->UnitCommand(scv, ABILITY_ID::BUILD_REFINERY, geyser);
             break;
@@ -602,9 +603,9 @@ bool BasicSc2Bot::TryBuildNewCC() {
       std::cout << "New Mineral Target Pos: " << mineral_target_pos.x << ", "
                 << mineral_target_pos.y << std::endl;
 
-      if (satellite_location.x == 0 && satellite_location.y == 0) {
-        satellite_location = FindBuildLocation(
-            mineral_target_pos, ABILITY_ID::BUILD_COMMANDCENTER, 6.0f);
+      if (GameState.GetSatelliteLocation() == Point2D()) {
+        GameState.SetEnemyBaseLocation(FindBuildLocation(
+            mineral_target_pos, ABILITY_ID::BUILD_COMMANDCENTER, 6.0f));
       }
 
       return TryBuildStructure(ABILITY_ID::BUILD_COMMANDCENTER);
@@ -679,7 +680,7 @@ void BasicSc2Bot::ManageAllTroops() {
       Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_SIEGETANK));
   for (const auto &tank : siegeTanks) {
     if (tank->orders.empty()) {
-      Actions()->UnitCommand(tank, ABILITY_ID::MOVE_MOVE, satellite_location);
+      Actions()->UnitCommand(tank, ABILITY_ID::MOVE_MOVE, GameState.GetSatelliteLocation());
     }
   }
 
@@ -736,9 +737,9 @@ void BasicSc2Bot::ManageAllTroops() {
       Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_VIKINGFIGHTER));
   for (const auto &viking : vikings) {
     if (viking->orders.empty()) {
-      if (satellite_location.x != 0 && satellite_location.y != 0) {
+      if (GameState.GetSatelliteLocation().x != 0 && GameState.GetSatelliteLocation().y != 0) {
         Actions()->UnitCommand(viking, ABILITY_ID::MOVE_MOVE,
-                               satellite_location);
+                               GameState.GetSatelliteLocation());
       } else {
         Actions()->UnitCommand(viking, ABILITY_ID::GENERAL_PATROL,
                                 GameState.GetBaseLocation());
