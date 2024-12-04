@@ -49,128 +49,49 @@ void BasicSc2Bot::OnStep() {
 
 // Will run every time a unit is idle
 void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
-  switch (unit->unit_type.ToType()) {
-  case UNIT_TYPEID::TERRAN_COMMANDCENTER: {
-    if (unit->assigned_harvesters < 18 &&
-        // Build SCVs all other times.
-        Point2D(unit->pos) == base_location) {
-      Actions()->UnitCommand(unit, ABILITY_ID::TRAIN_SCV);
-    }
-    break;
-  }
-  case UNIT_TYPEID::TERRAN_ORBITALCOMMAND: {
-    if (CountUnits(UNIT_TYPEID::TERRAN_MULE) < 4) {
-      Actions()->UnitCommand(unit, ABILITY_ID::EFFECT_CALLDOWNMULE,
-                             FindNearestMineralPatch(satellite_location));
-    }
-    if (unit->assigned_harvesters < 10) {
-      Actions()->UnitCommand(unit, ABILITY_ID::TRAIN_SCV);
-    }
-    break;
-  }
-
-  case UNIT_TYPEID::TERRAN_SCV: {
-    // TODO: Try to prioritize some SCVs to find gas as opposed to mineral.
-    const Unit *mineral_target = FindNearestMineralPatch(unit->pos);
-    main_base_mineral_patch = Point2D(mineral_target->pos);
-    const Unit *gas_target = FindNearestVespene(unit->pos);
-
-    if (mineral_target) {
-      Actions()->UnitCommand(unit, ABILITY_ID::SMART, mineral_target);
-    }
-
-    if (gas_target) {
-      Actions()->UnitCommand(unit, ABILITY_ID::SMART, gas_target);
-    }
-    break;
-  }
-  case UNIT_TYPEID::TERRAN_MULE: {
-    const Unit *mineral_target = FindNearestMineralPatch(unit->pos);
-    Point2D second_base_mineral_patch = Point2D(mineral_target->pos);
-
-    if (mineral_target) {
-      Actions()->UnitCommand(unit, ABILITY_ID::SMART, mineral_target);
-    }
-    break;
-  }
-  case UNIT_TYPEID::TERRAN_MARINE: {
-    // Static variables to track the scout Marine's ID and discovered enemy base
-    // location
-
-    // Get all Marines controlled by the player
-    Units marines = Observation()->GetUnits(Unit::Alliance::Self,
-                                            IsUnit(UNIT_TYPEID::TERRAN_MARINE));
-    const GameInfo &game_info = Observation()->GetGameInfo();
-
-    // Check if there are any enemy start locations
-    if (game_info.enemy_start_locations.empty()) {
-      break; // No enemy start locations to scout
-    }
-
-    // if (scout_died) {
-    //   // If the scout Marine is dead, ensure all other Marines are patrolling
-    //   for (const auto &marine : marines) {
-    //     if (marine->orders.empty()) {
-    //       Actions()->UnitCommand(marine, ABILITY_ID::GENERAL_PATROL,
-    //                              GetBaseLocation());
-    //     }
-    //   }
-    //   break; // Exit the case since no further scouting is needed
-    // }
-
-    for (const auto &marine : marines) {
-      if (scout_marine_id == 0) {
-        // Assign the first idle Marine as the scout if no scout is designated
-        if (marine->orders.empty()) {
-          scout_marine_id = marine->tag; // Assign this Marine as the scout
-          Actions()->UnitCommand(
-              marine, ABILITY_ID::ATTACK_ATTACK,
-              game_info.enemy_start_locations[current_target_index]);
+    switch (unit->unit_type.ToType()) {
+        case UNIT_TYPEID::TERRAN_COMMANDCENTER: {
+            if (unit->assigned_harvesters < 18 &&
+                Point2D(unit->pos) == base_location) {
+                Actions()->UnitCommand(unit, ABILITY_ID::TRAIN_SCV);
+            }
+            break;
         }
-      } else if (marine->tag == scout_marine_id) {
-        // If this Marine is already the scout, ensure it continues scouting
-        if (marine->orders.empty()) {
-          // Move to the next target location if the scout has reached the
-          // current one
-          current_target_index = (current_target_index + 1) %
-                                 game_info.enemy_start_locations.size();
-          Actions()->UnitCommand(
-              marine, ABILITY_ID::ATTACK_ATTACK,
-              game_info.enemy_start_locations[current_target_index]);
+        case UNIT_TYPEID::TERRAN_ORBITALCOMMAND: {
+            if (CountUnits(UNIT_TYPEID::TERRAN_MULE) < 4) {
+                Actions()->UnitCommand(unit, ABILITY_ID::EFFECT_CALLDOWNMULE,
+                                       FindNearestMineralPatch(satellite_location));
+            }
+            if (unit->assigned_harvesters < 10) {
+                Actions()->UnitCommand(unit, ABILITY_ID::TRAIN_SCV);
+            }
+            break;
         }
-      } else {
-        if (marine->orders.empty() && !is_attacking) {
-          Actions()->UnitCommand(marine, ABILITY_ID::MOVE_MOVE,
-                                 satellite_location);
+        case UNIT_TYPEID::TERRAN_SCV: {
+            const Unit *mineral_target = FindNearestMineralPatch(unit->pos);
+            const Unit *gas_target = FindNearestVespene(unit->pos);
+
+            if (mineral_target) {
+                Actions()->UnitCommand(unit, ABILITY_ID::SMART, mineral_target);
+            }
+
+            if (gas_target) {
+                Actions()->UnitCommand(unit, ABILITY_ID::SMART, gas_target);
+            }
+            break;
         }
-      }
+        case UNIT_TYPEID::TERRAN_MULE: {
+            const Unit *mineral_target = FindNearestMineralPatch(unit->pos);
+            if (mineral_target) {
+                Actions()->UnitCommand(unit, ABILITY_ID::SMART, mineral_target);
+            }
+            break;
+        }
+        default:
+            break;
     }
-
-    // Check if the scout Marine is alive
-    bool scout_is_alive = false;
-    for (const auto &marine : marines) {
-      if (marine->tag == scout_marine_id) {
-        scout_is_alive = true;
-        break;
-      }
-    }
-
-    if (!scout_is_alive && scout_marine_id != 0) {
-      // If the scout Marine is dead, mark the scout as dead
-      scout_died = true;
-      // set the enemy base location
-      enemy_base_location =
-          game_info.enemy_start_locations[current_target_index];
-      // std::cout << "Enemy base location identified: " <<
-      // enemy_base_location.x
-      //          << ", " << enemy_base_location.y << std::endl;
-    }
-    break;
-  }
-  default:
-    break;
-  }
 }
+
 
 // manage scv's will limit our scv production to 31
 void BasicSc2Bot::ManageSCVs() {
@@ -187,7 +108,7 @@ void BasicSc2Bot::ManageSCVs() {
       ((CountUnits(UNIT_TYPEID::TERRAN_COMMANDCENTER) == 1))) {
     // Once satellite base location is defined and as long as we do not yet have
     // a 2nd base established, we assign one SCV to the crystals.
-    if (scv_at_build_site_id == 0) {
+    if (scv_at_build_site_id == -1) {
       // If no SCV yet assigned, do so and mark down its ID
       for (const auto &scv : scvs) {
         if ((scv->orders.empty() ||
@@ -195,7 +116,8 @@ void BasicSc2Bot::ManageSCVs() {
             satellite_location != Point2D()) {
           // Assign 1st free SCV to be the satellite builder if available.
           scv_at_build_site_id = scv->tag;
-          Actions()->UnitCommand(scv, ABILITY_ID::SMART, satellite_location);
+          std::cout << "assigned scv build id: " << scv_at_build_site_id << std::endl;
+          Actions()->UnitCommand(scv, ABILITY_ID::MOVE_MOVE, satellite_location);
           break;
         }
       }
@@ -275,7 +197,7 @@ void BasicSc2Bot::ManageSCVs() {
 }
 
 void BasicSc2Bot::ManageTroopsAndBuildings() {
-  ManageCC();
+  //ManageCC();
 
   TryBuildRefinery();
   TryBuildSupplyDepot();
@@ -831,16 +753,102 @@ void BasicSc2Bot::ManageAllTroops() {
 
   // place siege tanks between the satellite and the enemy base
     sc2::Point2D rally_point = CalculateRallyPoint();
+    const float proximity_threshold = 20.0f;
 
-    // Send Marines to rally point if idle
+    // Define a lambda to exclude changelings
+    auto IsNotChangeling = [](const sc2::Unit &enemy) {
+        return enemy.unit_type != UNIT_TYPEID::ZERG_CHANGELING &&
+               enemy.unit_type != UNIT_TYPEID::ZERG_CHANGELINGZEALOT &&
+               enemy.unit_type != UNIT_TYPEID::ZERG_CHANGELINGMARINESHIELD &&
+               enemy.unit_type != UNIT_TYPEID::ZERG_CHANGELINGMARINE;
+    };
+
+    // Find all enemy units near our base or satellite and filter out changelings
+    Units enemies_near_base = Observation()->GetUnits(
+        Unit::Alliance::Enemy,
+        [&](const sc2::Unit &enemy) {
+            return IsNotChangeling(enemy) &&
+                   (Distance2D(enemy.pos, base_location) <= proximity_threshold ||
+                    Distance2D(enemy.pos, satellite_location) <= proximity_threshold - 10);
+        });
+
+    // Scout Marine Logic
+    if (scout_marine_id != 0) {
+        const sc2::Unit *scout_marine = Observation()->GetUnit(scout_marine_id);
+
+        if (scout_marine) {
+            // Ensure the scout Marine is actively scouting
+            if (scout_marine->orders.empty()) {
+                if (current_target_index < potential_enemy_locations_.size()) {
+                    Actions()->UnitCommand(
+                        scout_marine, ABILITY_ID::MOVE_MOVE,
+                        potential_enemy_locations_[current_target_index]);
+                    current_target_index = (current_target_index + 1) % potential_enemy_locations_.size();
+                }
+            }
+        } else {
+            // If the scout dies, log the enemy location and stop scouting
+            if (current_target_index < potential_enemy_locations_.size()) {
+                enemy_base_location = potential_enemy_locations_[current_target_index];
+                potential_enemy_locations_.clear(); // Stop further scouting
+            }
+        }
+    } else {
+        // Assign a scout Marine if one hasn't been set yet
+        Units marines = Observation()->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_MARINE));
+        for (const auto &marine : marines) {
+            if (marine->orders.empty()) {
+                scout_marine_id = marine->tag;
+                break;
+            }
+        }
+    }
+
+    // Handle Nearby Enemies
+    if (!enemies_near_base.empty()) {
+        sc2::Point2D enemy_position = enemies_near_base.front()->pos;
+
+        // Command all troops (excluding the scout Marine) to attack enemies
+        Units marines = Observation()->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_MARINE));
+        for (const auto &marine : marines) {
+            if (marine->orders.empty() && marine->tag != scout_marine_id) {
+                Actions()->UnitCommand(marine, ABILITY_ID::ATTACK_ATTACK, enemy_position);
+            }
+        }
+
+        Units tanks = Observation()->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_SIEGETANK));
+        for (const auto &tank : tanks) {
+            if (tank->orders.empty()) {
+                Actions()->UnitCommand(tank, ABILITY_ID::ATTACK_ATTACK, enemy_position);
+            }
+        }
+
+        Units medivacs = Observation()->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_MEDIVAC));
+        for (const auto &medivac : medivacs) {
+            if (medivac->orders.empty() && !marines.empty()) {
+                Actions()->UnitCommand(medivac, ABILITY_ID::SMART, marines.front());
+            }
+        }
+
+        Units vikings = Observation()->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_VIKINGFIGHTER));
+        for (const auto &viking : vikings) {
+            if (viking->orders.empty()) {
+                Actions()->UnitCommand(viking, ABILITY_ID::ATTACK_ATTACK, enemy_position);
+            }
+        }
+
+        return; // Exit after issuing attack commands
+    }
+
+    // Rally Non-Scout Marines
     Units marines = Observation()->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_MARINE));
     for (const auto &marine : marines) {
-        if (marine->orders.empty() && !is_attacking) {
+        if (marine->orders.empty() && marine->tag != scout_marine_id && !is_attacking) {
             Actions()->UnitCommand(marine, ABILITY_ID::MOVE_MOVE, rally_point);
         }
     }
 
-    // Send Siege Tanks to rally point if idle
+    // Move Tanks to Rally Point
     Units tanks = Observation()->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_SIEGETANK));
     for (const auto &tank : tanks) {
         if (tank->orders.empty() && !is_attacking) {
@@ -848,28 +856,25 @@ void BasicSc2Bot::ManageAllTroops() {
         }
     }
 
-    // Handle idle Medivacs
+    // Medivac Behavior
     Units medivacs = Observation()->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_MEDIVAC));
     if (!HasSupportableGroundUnits()) {
-        // Return Medivacs to base if no ground units exist
         for (const auto &medivac : medivacs) {
             if (medivac->orders.empty()) {
                 Actions()->UnitCommand(medivac, ABILITY_ID::MOVE_MOVE, GetBaseLocation());
             }
         }
     } else {
-        // Follow ground units if idle
         for (const auto &medivac : medivacs) {
             if (medivac->orders.empty()) {
-                Units ground_units = Observation()->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_MARINE));
-                if (!ground_units.empty()) {
-                    Actions()->UnitCommand(medivac, ABILITY_ID::SMART, ground_units.front());
+                if (!marines.empty()) {
+                    Actions()->UnitCommand(medivac, ABILITY_ID::SMART, marines.front());
                 }
             }
         }
     }
 
-    // Handle Vikings (can be extended based on your strategy)
+    // Vikings to Rally Point
     Units vikings = Observation()->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_VIKINGFIGHTER));
     for (const auto &viking : vikings) {
         if (viking->orders.empty()) {
@@ -877,6 +882,10 @@ void BasicSc2Bot::ManageAllTroops() {
         }
     }
 }
+
+
+
+
 
 
 // MODULAR UNIT TRAINING FUNCTIONS
@@ -947,7 +956,7 @@ void BasicSc2Bot::ManageBarracks() {
         Actions()->UnitCommand(add_on, sc2::ABILITY_ID::RESEARCH_STIMPACK);
       }
 
-      if (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 1 &&
+      if (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 0 &&
           CountUnits(UNIT_TYPEID::TERRAN_MARINE) < 48) {
         // Train Marines if both upgrades are done
         Actions()->UnitCommand(barrack, ABILITY_ID::TRAIN_MARINE);
@@ -1124,46 +1133,46 @@ bool BasicSc2Bot::HasUpgrade(const sc2::ObservationInterface *observation,
 }
 
 void BasicSc2Bot::InitializeSatelliteLocation() {
-  const ObservationInterface *observation = Observation();
-  Units mineral_patches =
-      Observation()->GetUnits(Unit::Alliance::Neutral, [](const Unit &unit) {
-        return unit.unit_type == UNIT_TYPEID::NEUTRAL_MINERALFIELD ||
-               unit.unit_type == UNIT_TYPEID::NEUTRAL_MINERALFIELD750;
-      });
+    const ObservationInterface *observation = Observation();
+    QueryInterface *query = Query();
 
-  // Get current base mineral patches (those being harvested)
-  const float MIN_DISTANCE = 17.0f; // Minimum distance from current base
-  const float MAX_DISTANCE = 35.0f; // Maximum distance for expansion
+    // Set up parameters for expansion calculations
+    sc2::search::ExpansionParameters parameters;
+    parameters.cluster_distance_ = 10.0f; // Distance to cluster resources
+    parameters.circle_step_size_ = 2.0f;  // Step size for placement queries
+    parameters.radiuses_ = {6.0f};        // Radius for base placement
+    parameters.debug_ = nullptr;         // Debug interface (optional)
 
-  // Find a mineral patch that's at an appropriate distance
-  const Unit *new_mineral_target = nullptr;
-  float best_distance = std::numeric_limits<float>::max();
+    // Calculate potential expansion locations
+    std::vector<Point3D> expansion_locations = CalculateExpansionLocations(observation, query, parameters);
 
-  for (const auto &mineral : mineral_patches) {
-    float dist_from_current = Distance2D(Point2D(mineral->pos), base_location);
+    const float MIN_DISTANCE = 11.0f; // Minimum distance from current base
+    const float MAX_DISTANCE = 40.0f; // Maximum distance for expansion
 
-    // Skip if too close or too far
-    if (dist_from_current < MIN_DISTANCE || dist_from_current > MAX_DISTANCE) {
-      continue;
+    // Find the best expansion location
+    float best_score = std::numeric_limits<float>::max();
+    Point3D best_location;
+
+    for (const auto &location : expansion_locations) {
+        float distance_from_base = Distance2D(Point2D(location), base_location);
+
+        // Skip locations too close or too far
+        if (distance_from_base < MIN_DISTANCE || distance_from_base > MAX_DISTANCE) {
+            continue;
+        }
+
+        // Score the location based on its proximity to the midpoint between MIN_DISTANCE and MAX_DISTANCE
+        float ideal_distance = (MIN_DISTANCE + MAX_DISTANCE) / 2.0f;
+        float score = std::abs(distance_from_base - ideal_distance);
+
+        if (score < best_score) {
+            best_score = score;
+            best_location = location;
+        }
     }
 
-    // Find the mineral patch closest to our ideal distance
-    // (which is halfway between min and max)
-    float ideal_distance = (MIN_DISTANCE + MAX_DISTANCE) / 2;
-    float distance_from_ideal = std::abs(dist_from_current - ideal_distance);
-
-    if (distance_from_ideal < best_distance) {
-      best_distance = distance_from_ideal;
-      new_mineral_target = mineral;
+    // Update satellite location if a valid one was found
+    if (best_score < std::numeric_limits<float>::max()) {
+        satellite_location = Point2D(best_location.x, best_location.y);
     }
-  }
-
-  if (new_mineral_target) {
-    Point2D mineral_target_pos = Point2D(new_mineral_target->pos);
-
-    if (satellite_location == Point2D()) {
-      satellite_location = FindBuildLocation(
-          mineral_target_pos, ABILITY_ID::BUILD_COMMANDCENTER, 6.0f);
-    }
-  }
 }
