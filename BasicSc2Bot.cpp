@@ -1,5 +1,8 @@
 #include "BasicSc2Bot.h"
+#include "BotStateManager.h"
 using namespace sc2;
+
+StateManager GameState(sc2::ObservationInterface *observation = Observation());
 
 void BasicSc2Bot::OnStep() {
   GameState.step_count++;

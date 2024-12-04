@@ -11,9 +11,12 @@
 class StateManager {
     public:
         int step_count = 0;
+
+        StateManager(sc2::ObservationInterface *observation) {
+            observation = observation;
+        }
         
         void InitializeEnemyLocations() {
-            const sc2::ObservationInterface* observation = SC2APIProtocol::Observation();
             const sc2::GameInfo &game_info = observation->GetGameInfo();
             for (const sc2::Point2D &starting_location :
                 game_info.enemy_start_locations) {
@@ -28,8 +31,6 @@ class StateManager {
 
         // Gets current state (counts, flags) for current step
         void GetCurrentState() {
-            const ObservationInterface *observation = SC2APIProtocol::Observation();
-
             num_marines = CountUnits(sc2::UNIT_TYPEID::TERRAN_MARINE);
             num_tanks = CountUnits(sc2::UNIT_TYPEID::TERRAN_SIEGETANK) + CountUnits(sc2::UNIT_TYPEID::TERRAN_SIEGETANKSIEGED);
             num_medivacs = CountUnits(sc2::UNIT_TYPEID::TERRAN_MEDIVAC);
@@ -39,17 +40,17 @@ class StateManager {
             num_factory = CountUnits(sc2::UNIT_TYPEID::TERRAN_FACTORY);
             num_starport = CountUnits(sc2::UNIT_TYPEID::TERRAN_STARPORT);
 
-            if (HasUpgrade(observation, sc2::UPGRADE_ID::STIMPACK) == true) {
+            if (HasUpgrade(sc2::UPGRADE_ID::STIMPACK) == true) {
                 stim_done = true;
             }
 
-            if (HasUpgrade(observation, sc2::UPGRADE_ID::COMBATSHIELD) == true) {
+            if (HasUpgrade(sc2::UPGRADE_ID::COMBATSHIELD) == true) {
                 shields_done = true;
             }
         }
 
         // Gets whether we have a certain upgrade.
-        bool HasUpgrade(const sc2::ObservationInterface *observation, sc2::UpgradeID upgrade_id) {
+        bool HasUpgrade(sc2::UpgradeID upgrade_id) {
             const auto &upgrades = observation->GetUpgrades();
             return std::find(upgrades.begin(), upgrades.end(), upgrade_id) != upgrades.end();
         }
@@ -107,7 +108,6 @@ class StateManager {
         sc2::Point2D GetBaseLocation() {
             if (base_location == sc2::Point2D()) {
                 // If base location is not set, then do so.
-                const ObservationInterface *observation = SC2APIProtocol::Observation();
                 const Unit *command_center =
                     observation
                         ->GetUnits(Unit::Alliance::Self,
@@ -150,7 +150,7 @@ class StateManager {
 
         // Get Resource Locations
         const sc2::Unit *FindNearestMineralPatch(const sc2::Point2D &start) {
-            Units units = SC2APIProtocol::Observation()->GetUnits(Unit::Alliance::Neutral);
+            Units units = observation->GetUnits(Unit::Alliance::Neutral);
             float distance = std::numeric_limits<float>::max();
             const Unit *target = nullptr;
             for (const auto &u : units) {
@@ -168,7 +168,7 @@ class StateManager {
 
         const sc2::Unit *FindNearestVespene(const sc2::Point2D &start) {
             // Search for neutral Vespene geysers within a certain distance of the unit.
-            Units units = SC2APIProtocol::Observation()->GetUnits(Unit::Alliance::Neutral);
+            Units units = observation->GetUnits(Unit::Alliance::Neutral);
             float distance = std::numeric_limits<float>::max();
             const Unit *target = nullptr;
             for (const auto &u : units) {
@@ -191,12 +191,11 @@ class StateManager {
     private:
         // Helper funciton to determine how many of a cetain unit we have
         int CountUnits(sc2::UNIT_TYPEID unit_type) const {
-            const ObservationInterface *observation = SC2APIProtocol::Observation();
             Units units = observation->GetUnits(Unit::Alliance::Self);
             int count = 0;
             for (const auto &unit : units) {
                 if (unit->unit_type == unit_type) {
-                ++count;
+                    ++count;
                 }
             }
             return count;
@@ -222,6 +221,7 @@ class StateManager {
 
         const int THRESH = 30;
         std::vector<sc2::Point2D> potential_enemy_locations_;
+        sc2::ObservationInterface* observation;
 }
 
 #endif
