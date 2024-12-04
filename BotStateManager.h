@@ -13,7 +13,7 @@ class StateManager {
         int step_count = 0;
         
         void InitializeEnemyLocations() {
-            const sc2::GameInfo &game_info = Observation()->GetGameInfo();
+            const sc2::GameInfo &game_info = SC2APIProtocol::Observation()->GetGameInfo();
             for (const sc2::Point2D &starting_location :
                 game_info.enemy_start_locations) {
                 potential_enemy_locations_.push_back(starting_location);
@@ -27,7 +27,7 @@ class StateManager {
 
         // Gets current state (counts, flags) for current step
         void GetCurrentState() {
-            const ObservationInterface *observation = Observation();
+            const ObservationInterface *observation = SC2APIProtocol::Observation();
 
             num_marines = CountUnits(sc2::UNIT_TYPEID::TERRAN_MARINE);
             num_tanks = CountUnits(sc2::UNIT_TYPEID::TERRAN_SIEGETANK) + CountUnits(sc2::UNIT_TYPEID::TERRAN_SIEGETANKSIEGED);
@@ -106,7 +106,7 @@ class StateManager {
         sc2::Point2D GetBaseLocation() {
             if (base_location == sc2::Point2D()) {
                 // If base location is not set, then do so.
-                const ObservationInterface *observation = Observation();
+                const ObservationInterface *observation = SC2APIProtocol::Observation();
                 const Unit *command_center =
                     observation
                         ->GetUnits(Unit::Alliance::Self,
@@ -148,8 +148,8 @@ class StateManager {
         }
 
         // Get Resource Locations
-        const sc2::Unit *FindNearestMineralPatch(const Point2D &start) {
-            Units units = Observation()->GetUnits(Unit::Alliance::Neutral);
+        const sc2::Unit *FindNearestMineralPatch(const sc2::Point2D &start) {
+            Units units = SC2APIProtocol::Observation()->GetUnits(Unit::Alliance::Neutral);
             float distance = std::numeric_limits<float>::max();
             const Unit *target = nullptr;
             for (const auto &u : units) {
@@ -167,7 +167,7 @@ class StateManager {
 
         const sc2::Unit *FindNearestVespene(const sc2::Point2D &start) {
             // Search for neutral Vespene geysers within a certain distance of the unit.
-            Units units = Observation()->GetUnits(Unit::Alliance::Neutral);
+            Units units = SC2APIProtocol::Observation()->GetUnits(Unit::Alliance::Neutral);
             float distance = std::numeric_limits<float>::max();
             const Unit *target = nullptr;
             for (const auto &u : units) {
@@ -190,7 +190,7 @@ class StateManager {
     private:
         // Helper funciton to determine how many of a cetain unit we have
         int CountUnits(sc2::UNIT_TYPEID unit_type) const {
-            const ObservationInterface *observation = Observation();
+            const ObservationInterface *observation = SC2APIProtocol::Observation();
             Units units = observation->GetUnits(Unit::Alliance::Self);
             int count = 0;
             for (const auto &unit : units) {
