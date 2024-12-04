@@ -11,8 +11,6 @@
 class StateManager {
     public:
         int step_count = 0;
-
-        bool HasUpgrade(const sc2::ObservationInterface *observation, sc2::UpgradeID upgrade_id);
         
         void InitializeEnemyLocations() {
             const sc2::GameInfo &game_info = Observation()->GetGameInfo();
@@ -106,7 +104,7 @@ class StateManager {
 
         // Get Base Location 
         sc2::Point2D GetBaseLocation() {
-            if (base_location == Point2D()) {
+            if (base_location == sc2::Point2D()) {
                 // If base location is not set, then do so.
                 const ObservationInterface *observation = Observation();
                 const Unit *command_center =
@@ -191,7 +189,7 @@ class StateManager {
         size_t current_attack_wave_ = 1;
     private:
         // Helper funciton to determine how many of a cetain unit we have
-        int CountUnits(UNIT_TYPEID unit_type) const {
+        int CountUnits(sc2::UNIT_TYPEID unit_type) const {
             const ObservationInterface *observation = Observation();
             Units units = observation->GetUnits(Unit::Alliance::Self);
             int count = 0;
@@ -213,10 +211,10 @@ class StateManager {
         bool satellite_built = false;
 
         // Troops
-        int num_scvs = num_marines = num_tanks = num_medivacs = num_mules = 0;
+        int num_scvs{0}, num_marines{0}, num_tanks{0}, num_medivacs{0}, num_mules{0};
 
         // Buildings
-        int num_command_center = num_orbital_command = num_barracks = num_factory = num_starport = num_enggbay = 0;
+        int num_command_center{0}, num_orbital_command{0}, num_barracks{0}, num_factory{0}, num_starport{0}, num_enggbay{0};}
 
         // Upgrade Flags
         bool stim_done = shields_done = false;
