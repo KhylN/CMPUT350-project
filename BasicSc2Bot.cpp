@@ -62,6 +62,12 @@ void BasicSc2Bot::OnStep() {
             << std::endl
             << std::endl;
 
+  std::cout << "SCV building second CC: "
+            << "scv_already_trying_to_build_second_cc" << std::endl
+            << std::endl
+            << std::endl
+            << std::endl;
+
   // TODO: Expanded Logic for Posture II
 }
 
@@ -158,19 +164,24 @@ void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
         }
       } else {
         // Other idle Marines should patrol
-        Point2D patrolArea;
-        float rx = GetRandomScalar();
-        float ry = GetRandomScalar();
+        // Point2D patrolArea;
+        // float rx = GetRandomScalar();
+        // float ry = GetRandomScalar();
 
+        // if (marine->orders.empty() && !is_attacking) {
+        //   if (satellite_location.x != 0 && satellite_location.y != 0) {
+        //     patrolArea = Point2D(satellite_location.x + rx * 10.0f,
+        //                          satellite_location.y + ry * 20.0f);
+        //   } else {
+        //     patrolArea = GetBaseLocation();
+        //   }
+        //   Actions()->UnitCommand(marine, ABILITY_ID::GENERAL_PATROL,
+        //                          patrolArea);
+        // }
+        // place marines at the satellite location
         if (marine->orders.empty() && !is_attacking) {
-          if (satellite_location.x != 0 && satellite_location.y != 0) {
-            patrolArea = Point2D(satellite_location.x + rx * 10.0f,
-                                 satellite_location.y + ry * 20.0f);
-          } else {
-            patrolArea = GetBaseLocation();
-          }
-          Actions()->UnitCommand(marine, ABILITY_ID::GENERAL_PATROL,
-                                 patrolArea);
+          Actions()->UnitCommand(marine, ABILITY_ID::MOVE_MOVE,
+                                 satellite_location);
         }
       }
     }
@@ -316,74 +327,108 @@ void BasicSc2Bot::LaunchAttack() {
 }
 
 void BasicSc2Bot::SendArmyTo(const sc2::Point2D &target) {
-  sc2::Units marines = Observation()->GetUnits(
-      sc2::Unit::Alliance::Self, sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_MARINE));
-  sc2::Units hellions = Observation()->GetUnits(
-      sc2::Unit::Alliance::Self, sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_HELLION));
-  sc2::Units tanks =
-      Observation()->GetUnits(sc2::Unit::Alliance::Self,
-                              sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_SIEGETANK));
-  sc2::Units medivacs = Observation()->GetUnits(
-      sc2::Unit::Alliance::Self, sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_MEDIVAC));
-  sc2::Units vikings = Observation()->GetUnits(
-      sc2::Unit::Alliance::Self,
-      sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_VIKINGFIGHTER));
-  sc2::Units marauders =
-      Observation()->GetUnits(sc2::Unit::Alliance::Self,
-                              sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_MARAUDER));
+    sc2::Units marines = Observation()->GetUnits(
+        sc2::Unit::Alliance::Self, sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_MARINE));
+    sc2::Units hellions = Observation()->GetUnits(
+        sc2::Unit::Alliance::Self, sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_HELLION));
+    sc2::Units tanks =
+        Observation()->GetUnits(sc2::Unit::Alliance::Self,
+                                sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_SIEGETANK));
+    sc2::Units medivacs = Observation()->GetUnits(
+        sc2::Unit::Alliance::Self, sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_MEDIVAC));
+    sc2::Units vikings = Observation()->GetUnits(
+        sc2::Unit::Alliance::Self,
+        sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_VIKINGFIGHTER));
+    sc2::Units marauders =
+        Observation()->GetUnits(sc2::Unit::Alliance::Self,
+                                sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_MARAUDER));
 
-  // Calculate formation points
-  sc2::Point2D rally_point = sc2::Point2D((target.x + GetBaseLocation().x) / 2,
-                                          (target.y + GetBaseLocation().y) / 2);
+    // Calculate formation points
+    sc2::Point2D rally_point = sc2::Point2D((target.x + GetBaseLocation().x) / 2,
+                                            (target.y + GetBaseLocation().y) / 2);
 
-  // Create groups for medivac support assignment
-  std::vector<const sc2::Unit *> ground_units;
-  for (const auto &marine : marines)
-    ground_units.push_back(marine);
-  for (const auto &marauder : marauders)
-    ground_units.push_back(marauder);
+    // Create groups for medivac support assignment
+    std::vector<const sc2::Unit *> ground_units;
+    for (const auto &marine : marines)
+        ground_units.push_back(marine);
+    for (const auto &marauder : marauders)
+        ground_units.push_back(marauder);
 
-  // Send tanks first to establish position
-  for (const auto &tank : tanks) {
-    Actions()->UnitCommand(tank, sc2::ABILITY_ID::ATTACK_ATTACK, target);
-  }
-
-  // Send ground units
-  for (const auto &unit : ground_units) {
-    Actions()->UnitCommand(unit, sc2::ABILITY_ID::ATTACK_ATTACK, target);
-  }
-  for (const auto &hellion : hellions) {
-    Actions()->UnitCommand(hellion, sc2::ABILITY_ID::ATTACK_ATTACK, target);
-  }
-
-  // Assign medivacs to follow ground units
-  if (!ground_units.empty() && !medivacs.empty()) {
-    size_t units_per_medivac =
-        std::max(ground_units.size() / medivacs.size(), size_t(1));
-    size_t current_unit = 0;
-
-    for (const auto &medivac : medivacs) {
-      if (current_unit < ground_units.size()) {
-        // Follow the assigned ground unit
-        Actions()->UnitCommand(medivac, sc2::ABILITY_ID::SMART,
-                               ground_units[current_unit]);
-        current_unit += units_per_medivac;
-      }
+    // Send tanks first to establish position
+    for (const auto &tank : tanks) {
+        if (tank->orders.empty()) {
+            Actions()->UnitCommand(tank, sc2::ABILITY_ID::ATTACK_ATTACK, target);
+        }
     }
-  }
-  // If no ground units are alive, send medivacs back to base
-  else if (ground_units.empty() && !medivacs.empty()) {
-    for (const auto &medivac : medivacs) {
-      Actions()->UnitCommand(medivac, sc2::ABILITY_ID::MOVE_MOVE,
-                             GetBaseLocation());
-    }
-  }
 
-  // Send vikings last
-  for (const auto &viking : vikings) {
-    Actions()->UnitCommand(viking, sc2::ABILITY_ID::ATTACK_ATTACK, target);
-  }
+    // Send ground units
+    for (const auto &unit : ground_units) {
+        if (unit->orders.empty()) {
+            Actions()->UnitCommand(unit, sc2::ABILITY_ID::ATTACK_ATTACK, target);
+        }
+    }
+    for (const auto &hellion : hellions) {
+        if (hellion->orders.empty()) {
+            Actions()->UnitCommand(hellion, sc2::ABILITY_ID::ATTACK_ATTACK, target);
+        }
+    }
+
+    // Assign medivacs to follow ground units
+    if (!ground_units.empty() && !medivacs.empty()) {
+        size_t units_per_medivac =
+            std::max(ground_units.size() / medivacs.size(), size_t(1));
+        size_t current_unit = 0;
+
+        for (const auto &medivac : medivacs) {
+            if (current_unit < ground_units.size()) {
+                // Follow the assigned ground unit
+                Actions()->UnitCommand(medivac, sc2::ABILITY_ID::SMART,
+                                       ground_units[current_unit]);
+                current_unit += units_per_medivac;
+            }
+        }
+    }
+    // If no ground units are alive, send medivacs back to base
+    else if (ground_units.empty() && !medivacs.empty()) {
+        for (const auto &medivac : medivacs) {
+            if (medivac->orders.empty()) {
+                Actions()->UnitCommand(medivac, sc2::ABILITY_ID::MOVE_MOVE,
+                                       GetBaseLocation());
+            }
+        }
+    }
+
+    // Send vikings last
+    for (const auto &viking : vikings) {
+        if (viking->orders.empty()) {
+            Actions()->UnitCommand(viking, sc2::ABILITY_ID::ATTACK_ATTACK, target);
+        }
+    }
+
+    // Clean up: Check for idle units and direct them to attack nearby enemies
+    sc2::Units enemies = Observation()->GetUnits(Unit::Alliance::Enemy);
+    for (const auto &unit : ground_units) {
+        if (unit->orders.empty() && !enemies.empty()) {
+            Actions()->UnitCommand(unit, sc2::ABILITY_ID::ATTACK_ATTACK, enemies.front()->pos);
+        }
+    }
+    for (const auto &tank : tanks) {
+        if (tank->orders.empty() && !enemies.empty()) {
+            Actions()->UnitCommand(tank, sc2::ABILITY_ID::ATTACK_ATTACK, enemies.front()->pos);
+        }
+    }
+    for (const auto &hellion : hellions) {
+        if (hellion->orders.empty() && !enemies.empty()) {
+            Actions()->UnitCommand(hellion, sc2::ABILITY_ID::ATTACK_ATTACK, enemies.front()->pos);
+        }
+    }
+    for (const auto &viking : vikings) {
+        if (viking->orders.empty() && !enemies.empty()) {
+            Actions()->UnitCommand(viking, sc2::ABILITY_ID::ATTACK_ATTACK, enemies.front()->pos);
+        }
+    }
 }
+
 
 bool BasicSc2Bot::HasSupportableGroundUnits() {
   return CountUnits(UNIT_TYPEID::TERRAN_MARINE) > 0 ||
@@ -751,22 +796,31 @@ bool BasicSc2Bot::TryBuildFactory() {
 void BasicSc2Bot::ManageAllTroops() {
 
   // patrol command for Siege Tanks
+  // Units siegeTanks = Observation()->GetUnits(
+  //     Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_SIEGETANK));
+  // for (const auto &tank : siegeTanks) {
+  //   // Other idle Marines should patrol
+  //   Point2D patrolArea;
+  //   float rx = GetRandomScalar();
+  //   float ry = GetRandomScalar();
+
+  //   if (tank->orders.empty() && !is_attacking) {
+  //     if (satellite_location.x != 0 && satellite_location.y != 0) {
+  //       patrolArea = Point2D(satellite_location.x + rx * 10.0f,
+  //                            satellite_location.y + ry * 20.0f);
+  //     } else {
+  //       patrolArea = GetBaseLocation();
+  //     }
+  //     Actions()->UnitCommand(tank, ABILITY_ID::GENERAL_PATROL, patrolArea);
+  //   }
+  // }
+
+  // place siege tanks between the satellite and the enemy base
   Units siegeTanks = Observation()->GetUnits(
       Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_SIEGETANK));
   for (const auto &tank : siegeTanks) {
-    // Other idle Marines should patrol
-    Point2D patrolArea;
-    float rx = GetRandomScalar();
-    float ry = GetRandomScalar();
-
-    if (tank->orders.empty() && !is_attacking) {
-      if (satellite_location.x != 0 && satellite_location.y != 0) {
-        patrolArea = Point2D(satellite_location.x + rx * 10.0f,
-                             satellite_location.y + ry * 20.0f);
-      } else {
-        patrolArea = GetBaseLocation();
-      }
-      Actions()->UnitCommand(tank, ABILITY_ID::GENERAL_PATROL, patrolArea);
+    if (tank->orders.empty()) {
+      Actions()->UnitCommand(tank, ABILITY_ID::MOVE_MOVE, satellite_location);
     }
   }
 
