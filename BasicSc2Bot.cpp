@@ -7,11 +7,6 @@ void BasicSc2Bot::InitializeEnemyLocations() {
        game_info.enemy_start_locations) {
     potential_enemy_locations_.push_back(starting_location);
   }
-  // output the list of potential enemy locations
-  // std::cout << "Potential Enemy Locations: " << std::endl;
-  for (const sc2::Point2D &location : potential_enemy_locations_) {
-    // std::cout << location.x << ", " << location.y << std::endl;
-  }
 }
 
 void BasicSc2Bot::OnStep() {
@@ -24,29 +19,31 @@ void BasicSc2Bot::OnStep() {
     }
   } else {
     ManageTroopsAndBuildings();
-    std::cout << "main_base_mineral_patch: " << main_base_mineral_patch.x << ", "
-              << main_base_mineral_patch.y << std::endl
-              << std::endl
-              << std::endl
-              << std::endl;
-    std::cout << "Satellite Location: " << satellite_location.x << ", "
-              << satellite_location.y << std::endl
-              << std::endl
-              << std::endl
-              << std::endl;
+    // std::cout << "main_base_mineral_patch: " << main_base_mineral_patch.x
+    //           << ", " << main_base_mineral_patch.y << std::endl
+    //           << std::endl
+    //           << std::endl
+    //           << std::endl;
+    // std::cout << "Satellite Location: " << satellite_location.x << ", "
+    //           << satellite_location.y << std::endl
+    //           << std::endl
+    //           << std::endl
+    //           << std::endl;
 
-    std::cout << "barrack cnt: " << CountUnits(UNIT_TYPEID::TERRAN_BARRACKS)
-              << std::endl;
+    // std::cout << "barrack cnt: " << CountUnits(UNIT_TYPEID::TERRAN_BARRACKS)
+    //           << std::endl;
 
-    std::cout << "Barrack add-on: " << barrack_tech_lab << std::endl
-              << std::endl;
+    // std::cout << "Barrack add-on: " << barrack_tech_lab << std::endl
+    //           << std::endl;
 
-    std::cout << "Stimpack: " << HasUpgrade(Observation(), UPGRADE_ID::STIMPACK)
-              << std::endl;
+    // std::cout << "Stimpack: " << HasUpgrade(Observation(),
+    // UPGRADE_ID::STIMPACK)
+    //           << std::endl;
 
-    std::cout << "Shieldwall: "
-              << HasUpgrade(Observation(), UPGRADE_ID::SHIELDWALL) << std::endl
-              << std::endl;
+    // std::cout << "Shieldwall: "
+    //           << HasUpgrade(Observation(), UPGRADE_ID::SHIELDWALL) <<
+    //           std::endl
+    //           << std::endl;
   }
 }
 
@@ -164,7 +161,8 @@ void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
       // set the enemy base location
       enemy_base_location =
           game_info.enemy_start_locations[current_target_index];
-      // std::cout << "Enemy base location identified: " << enemy_base_location.x
+      // std::cout << "Enemy base location identified: " <<
+      // enemy_base_location.x
       //          << ", " << enemy_base_location.y << std::endl;
     }
     break;
@@ -182,15 +180,19 @@ void BasicSc2Bot::ManageSCVs() {
   Units refineries = observation->GetUnits(
       Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_REFINERY));
   // Assign SCVs to refineries
-  
+
   // Assign Satellite Base Builder and sent to crystals as early as possible
 
-  if (satellite_location != Point2D() && ((CountUnits(UNIT_TYPEID::TERRAN_COMMANDCENTER) == 1))) {
-    // Once satellite base location is defined and as long as we do not yet have a 2nd base established, we assign one SCV to the crystals.
-    if (scv_at_build_site_id == 0) { 
+  if (satellite_location != Point2D() &&
+      ((CountUnits(UNIT_TYPEID::TERRAN_COMMANDCENTER) == 1))) {
+    // Once satellite base location is defined and as long as we do not yet have
+    // a 2nd base established, we assign one SCV to the crystals.
+    if (scv_at_build_site_id == 0) {
       // If no SCV yet assigned, do so and mark down its ID
-      for (const auto& scv : scvs) {
-        if ((scv->orders.empty() || scv->orders.front().ability_id == ABILITY_ID::HARVEST_GATHER) && satellite_location != Point2D()) {
+      for (const auto &scv : scvs) {
+        if ((scv->orders.empty() ||
+             scv->orders.front().ability_id == ABILITY_ID::HARVEST_GATHER) &&
+            satellite_location != Point2D()) {
           // Assign 1st free SCV to be the satellite builder if available.
           scv_at_build_site_id = scv->tag;
           Actions()->UnitCommand(scv, ABILITY_ID::SMART, satellite_location);
@@ -198,15 +200,16 @@ void BasicSc2Bot::ManageSCVs() {
         }
       }
     } else {
-      // If SCV is assigned, ensure it remains at the extra crystals until its ordered to build the base
-      for (const auto& scv : scvs) {
+      // If SCV is assigned, ensure it remains at the extra crystals until its
+      // ordered to build the base
+      for (const auto &scv : scvs) {
         // Look for the assigned SCV
         if (scv->tag == scv_at_build_site_id) {
           if (scv->orders.empty()) {
             Actions()->UnitCommand(scv, ABILITY_ID::SMART, satellite_location);
-          } 
+          }
           bool is_building_cc = false;
-          for (const auto& order : scv->orders) {
+          for (const auto &order : scv->orders) {
             if (order.ability_id == ABILITY_ID::BUILD_COMMANDCENTER) {
               is_building_cc = true;
               break;
@@ -271,7 +274,6 @@ void BasicSc2Bot::ManageSCVs() {
   }
 }
 
-
 void BasicSc2Bot::ManageTroopsAndBuildings() {
   ManageCC();
 
@@ -297,16 +299,16 @@ void BasicSc2Bot::ManageTroopsAndBuildings() {
   ManageFactory();
 
   bool can_attack = MilitaryStrength();
-  std::cout << "Marines: " << CountUnits(UNIT_TYPEID::TERRAN_MARINE)
-            << " Hellions: " << CountUnits(UNIT_TYPEID::TERRAN_HELLION)
-            << " Vikings: " << CountUnits(UNIT_TYPEID::TERRAN_VIKINGFIGHTER)
-            << " Medivacs: " << CountUnits(UNIT_TYPEID::TERRAN_MEDIVAC)
-            << " Tanks: " << CountUnits(UNIT_TYPEID::TERRAN_SIEGETANK)
-            << std::endl;
+  // std::cout << "Marines: " << CountUnits(UNIT_TYPEID::TERRAN_MARINE)
+  //           << " Hellions: " << CountUnits(UNIT_TYPEID::TERRAN_HELLION)
+  //           << " Vikings: " << CountUnits(UNIT_TYPEID::TERRAN_VIKINGFIGHTER)
+  //           << " Medivacs: " << CountUnits(UNIT_TYPEID::TERRAN_MEDIVAC)
+  //           << " Tanks: " << CountUnits(UNIT_TYPEID::TERRAN_SIEGETANK)
+  //           << std::endl;
 
   if (can_attack) {
-    std::cout << "Launching attack! Wave: " << current_attack_wave_
-              << std::endl;
+    // std::cout << "Launching attack! Wave: " << current_attack_wave_
+    //           << std::endl;
     LaunchAttack();
   } else {
     ManageAllTroops();
@@ -316,122 +318,117 @@ void BasicSc2Bot::ManageTroopsAndBuildings() {
 void BasicSc2Bot::LaunchAttack() {
   is_attacking = true;
 
-  std::cout << "Potential Enemy Locations: " << std::endl;
-  for (const sc2::Point2D &location : potential_enemy_locations_) {
-    std::cout << location.x << ", " << location.y << std::endl;
-  }
-
-  std::cout << "enemy base location: " << enemy_base_location.x << ", "
-            << enemy_base_location.y << std::endl;
-
   if (enemy_base_location.x != 0 && enemy_base_location.y != 0) {
     SendArmyTo(enemy_base_location);
   }
 }
 
 void BasicSc2Bot::SendArmyTo(const sc2::Point2D &target) {
-    sc2::Units marines = Observation()->GetUnits(
-        sc2::Unit::Alliance::Self, sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_MARINE));
-    sc2::Units hellions = Observation()->GetUnits(
-        sc2::Unit::Alliance::Self, sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_HELLION));
-    sc2::Units tanks =
-        Observation()->GetUnits(sc2::Unit::Alliance::Self,
-                                sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_SIEGETANK));
-    sc2::Units medivacs = Observation()->GetUnits(
-        sc2::Unit::Alliance::Self, sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_MEDIVAC));
-    sc2::Units vikings = Observation()->GetUnits(
-        sc2::Unit::Alliance::Self,
-        sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_VIKINGFIGHTER));
-    sc2::Units marauders =
-        Observation()->GetUnits(sc2::Unit::Alliance::Self,
-                                sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_MARAUDER));
+  sc2::Units marines = Observation()->GetUnits(
+      sc2::Unit::Alliance::Self, sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_MARINE));
+  sc2::Units hellions = Observation()->GetUnits(
+      sc2::Unit::Alliance::Self, sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_HELLION));
+  sc2::Units tanks =
+      Observation()->GetUnits(sc2::Unit::Alliance::Self,
+                              sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_SIEGETANK));
+  sc2::Units medivacs = Observation()->GetUnits(
+      sc2::Unit::Alliance::Self, sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_MEDIVAC));
+  sc2::Units vikings = Observation()->GetUnits(
+      sc2::Unit::Alliance::Self,
+      sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_VIKINGFIGHTER));
+  sc2::Units marauders =
+      Observation()->GetUnits(sc2::Unit::Alliance::Self,
+                              sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_MARAUDER));
 
-    // Calculate formation points
-    sc2::Point2D rally_point = sc2::Point2D((target.x + GetBaseLocation().x) / 2,
-                                            (target.y + GetBaseLocation().y) / 2);
+  // Calculate formation points
+  sc2::Point2D rally_point = sc2::Point2D((target.x + GetBaseLocation().x) / 2,
+                                          (target.y + GetBaseLocation().y) / 2);
 
-    // Create groups for medivac support assignment
-    std::vector<const sc2::Unit *> ground_units;
-    for (const auto &marine : marines)
-        ground_units.push_back(marine);
-    for (const auto &marauder : marauders)
-        ground_units.push_back(marauder);
+  // Create groups for medivac support assignment
+  std::vector<const sc2::Unit *> ground_units;
+  for (const auto &marine : marines)
+    ground_units.push_back(marine);
+  for (const auto &marauder : marauders)
+    ground_units.push_back(marauder);
 
-    // Send tanks first to establish position
-    for (const auto &tank : tanks) {
-        if (tank->orders.empty()) {
-            Actions()->UnitCommand(tank, sc2::ABILITY_ID::ATTACK_ATTACK, target);
-        }
+  // Send tanks first to establish position
+  for (const auto &tank : tanks) {
+    if (tank->orders.empty()) {
+      Actions()->UnitCommand(tank, sc2::ABILITY_ID::ATTACK_ATTACK, target);
     }
+  }
 
-    // Send ground units
-    for (const auto &unit : ground_units) {
-        if (unit->orders.empty()) {
-            Actions()->UnitCommand(unit, sc2::ABILITY_ID::ATTACK_ATTACK, target);
-        }
+  // Send ground units
+  for (const auto &unit : ground_units) {
+    if (unit->orders.empty()) {
+      Actions()->UnitCommand(unit, sc2::ABILITY_ID::ATTACK_ATTACK, target);
     }
-    for (const auto &hellion : hellions) {
-        if (hellion->orders.empty()) {
-            Actions()->UnitCommand(hellion, sc2::ABILITY_ID::ATTACK_ATTACK, target);
-        }
+  }
+  for (const auto &hellion : hellions) {
+    if (hellion->orders.empty()) {
+      Actions()->UnitCommand(hellion, sc2::ABILITY_ID::ATTACK_ATTACK, target);
     }
+  }
 
-    // Assign medivacs to follow ground units
-    if (!ground_units.empty() && !medivacs.empty()) {
-        size_t units_per_medivac =
-            std::max(ground_units.size() / medivacs.size(), size_t(1));
-        size_t current_unit = 0;
+  // Assign medivacs to follow ground units
+  if (!ground_units.empty() && !medivacs.empty()) {
+    size_t units_per_medivac =
+        std::max(ground_units.size() / medivacs.size(), size_t(1));
+    size_t current_unit = 0;
 
-        for (const auto &medivac : medivacs) {
-            if (current_unit < ground_units.size()) {
-                // Follow the assigned ground unit
-                Actions()->UnitCommand(medivac, sc2::ABILITY_ID::SMART,
-                                       ground_units[current_unit]);
-                current_unit += units_per_medivac;
-            }
-        }
+    for (const auto &medivac : medivacs) {
+      if (current_unit < ground_units.size()) {
+        // Follow the assigned ground unit
+        Actions()->UnitCommand(medivac, sc2::ABILITY_ID::SMART,
+                               ground_units[current_unit]);
+        current_unit += units_per_medivac;
+      }
     }
-    // If no ground units are alive, send medivacs back to base
-    else if (ground_units.empty() && !medivacs.empty()) {
-        for (const auto &medivac : medivacs) {
-            if (medivac->orders.empty()) {
-                Actions()->UnitCommand(medivac, sc2::ABILITY_ID::MOVE_MOVE,
-                                       GetBaseLocation());
-            }
-        }
+  }
+  // If no ground units are alive, send medivacs back to base
+  else if (ground_units.empty() && !medivacs.empty()) {
+    for (const auto &medivac : medivacs) {
+      if (medivac->orders.empty()) {
+        Actions()->UnitCommand(medivac, sc2::ABILITY_ID::MOVE_MOVE,
+                               GetBaseLocation());
+      }
     }
+  }
 
-    // Send vikings last
-    for (const auto &viking : vikings) {
-        if (viking->orders.empty()) {
-            Actions()->UnitCommand(viking, sc2::ABILITY_ID::ATTACK_ATTACK, target);
-        }
+  // Send vikings last
+  for (const auto &viking : vikings) {
+    if (viking->orders.empty()) {
+      Actions()->UnitCommand(viking, sc2::ABILITY_ID::ATTACK_ATTACK, target);
     }
+  }
 
-    // Clean up: Check for idle units and direct them to attack nearby enemies
-    sc2::Units enemies = Observation()->GetUnits(Unit::Alliance::Enemy);
-    for (const auto &unit : ground_units) {
-        if (unit->orders.empty() && !enemies.empty()) {
-            Actions()->UnitCommand(unit, sc2::ABILITY_ID::ATTACK_ATTACK, enemies.front()->pos);
-        }
+  // Clean up: Check for idle units and direct them to attack nearby enemies
+  sc2::Units enemies = Observation()->GetUnits(Unit::Alliance::Enemy);
+  for (const auto &unit : ground_units) {
+    if (unit->orders.empty() && !enemies.empty()) {
+      Actions()->UnitCommand(unit, sc2::ABILITY_ID::ATTACK_ATTACK,
+                             enemies.front()->pos);
     }
-    for (const auto &tank : tanks) {
-        if (tank->orders.empty() && !enemies.empty()) {
-            Actions()->UnitCommand(tank, sc2::ABILITY_ID::ATTACK_ATTACK, enemies.front()->pos);
-        }
+  }
+  for (const auto &tank : tanks) {
+    if (tank->orders.empty() && !enemies.empty()) {
+      Actions()->UnitCommand(tank, sc2::ABILITY_ID::ATTACK_ATTACK,
+                             enemies.front()->pos);
     }
-    for (const auto &hellion : hellions) {
-        if (hellion->orders.empty() && !enemies.empty()) {
-            Actions()->UnitCommand(hellion, sc2::ABILITY_ID::ATTACK_ATTACK, enemies.front()->pos);
-        }
+  }
+  for (const auto &hellion : hellions) {
+    if (hellion->orders.empty() && !enemies.empty()) {
+      Actions()->UnitCommand(hellion, sc2::ABILITY_ID::ATTACK_ATTACK,
+                             enemies.front()->pos);
     }
-    for (const auto &viking : vikings) {
-        if (viking->orders.empty() && !enemies.empty()) {
-            Actions()->UnitCommand(viking, sc2::ABILITY_ID::ATTACK_ATTACK, enemies.front()->pos);
-        }
+  }
+  for (const auto &viking : vikings) {
+    if (viking->orders.empty() && !enemies.empty()) {
+      Actions()->UnitCommand(viking, sc2::ABILITY_ID::ATTACK_ATTACK,
+                             enemies.front()->pos);
     }
+  }
 }
-
 
 bool BasicSc2Bot::HasSupportableGroundUnits() {
   return CountUnits(UNIT_TYPEID::TERRAN_MARINE) > 0 ||
@@ -449,12 +446,16 @@ bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure) {
   for (const auto &unit : units) {
     bool unit_is_busy = false;
 
-    if (unit->tag == scv_at_build_site_id && ability_type_for_structure != ABILITY_ID::BUILD_COMMANDCENTER) {
-          continue;
+    if (unit->tag == scv_at_build_site_id &&
+        ability_type_for_structure != ABILITY_ID::BUILD_COMMANDCENTER) {
+      continue;
     }
 
-    if (unit->tag == scv_at_build_site_id && ability_type_for_structure == ABILITY_ID::BUILD_COMMANDCENTER) {
+    if (unit->tag == scv_at_build_site_id &&
+        ability_type_for_structure == ABILITY_ID::BUILD_COMMANDCENTER) {
+
       unit_to_build = unit;
+      std::cout << unit_to_build->tag << std::endl;
       break;
     }
 
@@ -474,12 +475,16 @@ bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure) {
         unit_is_busy = true;
         break;
       }
+      if (order.ability_id == ABILITY_ID::HARVEST_GATHER) {
+        break;
+      }
     }
 
     // Select an idle unit that matches the required type
     if (!unit_is_busy) {
       // Ennsure emplaced SCV is the only one to build new CC
-      if (unit->tag != scv_at_build_site_id && ability_type_for_structure == ABILITY_ID::BUILD_COMMANDCENTER) {
+      if (unit->tag != scv_at_build_site_id &&
+          ability_type_for_structure == ABILITY_ID::BUILD_COMMANDCENTER) {
         continue;
       }
       unit_to_build = unit;
@@ -512,12 +517,12 @@ bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure) {
 
   if (build_location ==
       Point2D()) { // Check if FindBuildLocation returned a valid location
-    std::cerr << "No valid build location found for structure: "
-              << static_cast<int>(ability_type_for_structure) << std::endl;
+    // std::cerr << "No valid build location found for structure: "
+    //           << static_cast<int>(ability_type_for_structure) << std::endl;
     return false;
   } else {
-    std::cout << "Build location found at: (" << build_location.x << ", "
-              << build_location.y << ")" << std::endl;
+    // std::cout << "Build location found at: (" << build_location.x << ", "
+    //           << build_location.y << ")" << std::endl;
   }
 
   // Check resources before issuing the build command
@@ -535,10 +540,12 @@ bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure) {
                          build_location);
 
   //
-  std::cout << "Issued build command to unit: " << unit_to_build->tag
-            << " for structure: "
-            << static_cast<int>(ability_type_for_structure) << " at location: ("
-            << build_location.x << ", " << build_location.y << ")" << std::endl;
+  // std::cout << "Issued build command to unit: " << unit_to_build->tag
+  //           << " for structure: "
+  //           << static_cast<int>(ability_type_for_structure) << " at location:
+  //           ("
+  //           << build_location.x << ", " << build_location.y << ")" <<
+  //           std::endl;
 
   return true;
 }
@@ -597,10 +604,20 @@ void BasicSc2Bot::TryBuildRefinery() {
   Units geysers = observation->GetUnits(
       Unit::Alliance::Neutral, IsUnit(UNIT_TYPEID::NEUTRAL_VESPENEGEYSER));
 
-  if ((CountUnits(UNIT_TYPEID::TERRAN_REFINERY) < 1 && (CountUnits(UNIT_TYPEID::TERRAN_SUPPLYDEPOT) > 0 || CountUnits(UNIT_TYPEID::TERRAN_SUPPLYDEPOTLOWERED) > 0) && CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) > 0)  ||
+  Units space_platform_geysers =
+      observation->GetUnits(Unit::Alliance::Neutral,
+                            IsUnit(UNIT_TYPEID::NEUTRAL_SPACEPLATFORMGEYSER));
+
+  if (space_platform_geysers.size() > geysers.size()) {
+    geysers = space_platform_geysers;
+  }
+
+  if ((CountUnits(UNIT_TYPEID::TERRAN_REFINERY) < 1 &&
+       (CountUnits(UNIT_TYPEID::TERRAN_SUPPLYDEPOT) > 0 ||
+        CountUnits(UNIT_TYPEID::TERRAN_SUPPLYDEPOTLOWERED) > 0) &&
+       CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) > 0) ||
       (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 0 &&
        CountUnits(UNIT_TYPEID::TERRAN_REFINERY) < 2)) {
-    std::cout << "Trying to build refinery" << std::endl << std::endl << std::endl;
     for (const auto &geyser : geysers) {
       // Check distance from the base
       float distance = Distance2D(geyser->pos, base_location);
@@ -653,16 +670,19 @@ bool BasicSc2Bot::TryBuildSupplyDepot() {
   int supply_depots_in_progress = CountUnits(UNIT_TYPEID::TERRAN_SUPPLYDEPOT);
 
   // Avoid building if there are already enough depots being built
-  if ((CountUnits(UNIT_TYPEID::TERRAN_SUPPLYDEPOT) < 1) && CountUnits(UNIT_TYPEID::TERRAN_SUPPLYDEPOTLOWERED) < 1) {
+  if ((CountUnits(UNIT_TYPEID::TERRAN_SUPPLYDEPOT) < 1) &&
+      CountUnits(UNIT_TYPEID::TERRAN_SUPPLYDEPOTLOWERED) < 1) {
     return TryBuildStructure(ABILITY_ID::BUILD_SUPPLYDEPOT);
   }
 
-  if (used_supply > current_supply_cap - 5 && supply_depots_in_progress < 2 && CountUnits(UNIT_TYPEID::TERRAN_REFINERY) > 0 && CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) > 2) {
+  if (used_supply > current_supply_cap - 5 && supply_depots_in_progress < 2 &&
+      CountUnits(UNIT_TYPEID::TERRAN_REFINERY) > 0 &&
+      CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) > 2) {
     return TryBuildStructure(ABILITY_ID::BUILD_SUPPLYDEPOT);
   }
 
-
-  if (used_supply > current_supply_cap - 9 && supply_depots_in_progress < 3 && CountUnits(UNIT_TYPEID::TERRAN_REFINERY) > 0) {
+  if (used_supply > current_supply_cap - 9 && supply_depots_in_progress < 3 &&
+      CountUnits(UNIT_TYPEID::TERRAN_REFINERY) > 0) {
     return TryBuildStructure(ABILITY_ID::BUILD_SUPPLYDEPOT);
   }
   return false;
@@ -670,7 +690,6 @@ bool BasicSc2Bot::TryBuildSupplyDepot() {
 
 // Lowers all non-lowered supply depots
 bool BasicSc2Bot::TryMorphSupplyDepot() {
-  std::cout << "testing testing testing" << std::endl;
   const ObservationInterface *observation = Observation();
   Units supply_depots = Observation()->GetUnits(
       Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_SUPPLYDEPOT));
@@ -692,7 +711,9 @@ bool BasicSc2Bot::TryMorphSupplyDepot() {
 bool BasicSc2Bot::TryBuildBarracks() {
   // Build barracks if we have fewer than 1.
   const ObservationInterface *observation = Observation();
-  if (CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) < 1 && ((CountUnits(UNIT_TYPEID::TERRAN_SUPPLYDEPOT) > 0) || CountUnits(UNIT_TYPEID::TERRAN_SUPPLYDEPOTLOWERED) > 0)) {
+  if (CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) < 1 &&
+      ((CountUnits(UNIT_TYPEID::TERRAN_SUPPLYDEPOT) > 0) ||
+       CountUnits(UNIT_TYPEID::TERRAN_SUPPLYDEPOTLOWERED) > 0)) {
     return TryBuildStructure(ABILITY_ID::BUILD_BARRACKS);
   } else if (CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) < 2 &&
              CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 0) {
@@ -701,7 +722,9 @@ bool BasicSc2Bot::TryBuildBarracks() {
              CountUnits(UNIT_TYPEID::TERRAN_MARINE) > 6 &&
              HasUpgrade(Observation(), UPGRADE_ID::SHIELDWALL)) {
     return TryBuildStructure(ABILITY_ID::BUILD_BARRACKS);
-  } else if (HasUpgrade(Observation(), UPGRADE_ID::STIMPACK) && CountUnits(UNIT_TYPEID::TERRAN_STARPORT) > 0 && CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) < 5) {
+  } else if (HasUpgrade(Observation(), UPGRADE_ID::STIMPACK) &&
+             CountUnits(UNIT_TYPEID::TERRAN_STARPORT) > 0 &&
+             CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) < 5) {
     return TryBuildStructure(ABILITY_ID::BUILD_BARRACKS);
   }
   return false;
@@ -711,7 +734,7 @@ bool BasicSc2Bot::TryBuildNewCC() {
   // Build satellite command center to facilitate more eco. Built immediately
   // after 1st Vespene
   if (CountUnits(UNIT_TYPEID::TERRAN_REFINERY) > 0 && !satellite_built) {
-      return TryBuildStructure(ABILITY_ID::BUILD_COMMANDCENTER);
+    return TryBuildStructure(ABILITY_ID::BUILD_COMMANDCENTER);
   }
   return false;
 }
@@ -869,10 +892,11 @@ void BasicSc2Bot::ManageAllTroops() {
 // MODULAR UNIT TRAINING FUNCTIONS
 void BasicSc2Bot::ManageCC() {
   Units cc = Observation()->GetUnits(
-    // If satellite base upgraded to Orbital Command, then the same must be done to the main base.
+      // If satellite base upgraded to Orbital Command, then the same must be
+      // done to the main base.
       Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_COMMANDCENTER));
   if (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 0) {
-      Actions()->UnitCommand(cc, ABILITY_ID::MORPH_ORBITALCOMMAND);
+    Actions()->UnitCommand(cc, ABILITY_ID::MORPH_ORBITALCOMMAND);
   }
 }
 
@@ -902,7 +926,8 @@ void BasicSc2Bot::ManageBarracks() {
 
       if (barrack->add_on_tag == NullTag &&
           (CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) == 1 ||
-           (CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) == 3) && CountUnits(UNIT_TYPEID::TERRAN_BARRACKSTECHLAB) > 0)) {
+           (CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) == 3) &&
+               CountUnits(UNIT_TYPEID::TERRAN_BARRACKSTECHLAB) > 0)) {
         // Build a Reactor if no add-on exists and we don't already have one
         Actions()->UnitCommand(barrack, ABILITY_ID::BUILD_REACTOR);
         break; // We only want one Tech Lab, so stop after issuing the command
@@ -926,15 +951,18 @@ void BasicSc2Bot::ManageBarracks() {
       // Research Stimpack if a Tech Lab is present and Stimpack isn't done
       if (add_on &&
           add_on->unit_type == sc2::UNIT_TYPEID::TERRAN_BARRACKSTECHLAB &&
-          !HasUpgrade(observation, UPGRADE_ID::STIMPACK) && HasUpgrade(observation, UPGRADE_ID::SHIELDWALL)) {
+          !HasUpgrade(observation, UPGRADE_ID::STIMPACK) &&
+          HasUpgrade(observation, UPGRADE_ID::SHIELDWALL)) {
         // Send the Stimpack research command to the Tech Lab
         Actions()->UnitCommand(add_on, sc2::ABILITY_ID::RESEARCH_STIMPACK);
       }
 
-      if (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 1 && CountUnits(UNIT_TYPEID::TERRAN_MARINE) < 48) {
-        // Train Marines if both upgrades are done 
+      if (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 1 &&
+          CountUnits(UNIT_TYPEID::TERRAN_MARINE) < 48) {
+        // Train Marines if both upgrades are done
         Actions()->UnitCommand(barrack, ABILITY_ID::TRAIN_MARINE);
-      } else if (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) < 1 && CountUnits(UNIT_TYPEID::TERRAN_MARINE) < 5) {
+      } else if (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) < 1 &&
+                 CountUnits(UNIT_TYPEID::TERRAN_MARINE) < 5) {
         // Train 8 Marines to repel early poke before Orbital Command
         Actions()->UnitCommand(barrack, ABILITY_ID::TRAIN_MARINE);
       }
@@ -961,7 +989,8 @@ void BasicSc2Bot::ManageFactory() {
       // Tanks
 
       // Produce Siege Tanks if fewer than 6
-      if (CountUnits(UNIT_TYPEID::TERRAN_SIEGETANK) < 6 && factory->orders.empty()) {
+      if (CountUnits(UNIT_TYPEID::TERRAN_SIEGETANK) < 6 &&
+          factory->orders.empty()) {
         Actions()->UnitCommand(factory, ABILITY_ID::TRAIN_SIEGETANK);
       }
     }
@@ -1019,7 +1048,8 @@ const Unit *BasicSc2Bot::FindNearestVespene(const Point2D &start) {
   float distance = std::numeric_limits<float>::max();
   const Unit *target = nullptr;
   for (const auto &u : units) {
-    if (u->unit_type == UNIT_TYPEID::NEUTRAL_VESPENEGEYSER || u->unit_type == UNIT_TYPEID::NEUTRAL_RICHVESPENEGEYSER) {
+    if (u->unit_type == UNIT_TYPEID::NEUTRAL_VESPENEGEYSER ||
+        u->unit_type == UNIT_TYPEID::NEUTRAL_RICHVESPENEGEYSER) {
       float d = DistanceSquared2D(u->pos, start);
       if (d < distance) {
         distance = d;
@@ -1106,10 +1136,10 @@ bool BasicSc2Bot::HasUpgrade(const sc2::ObservationInterface *observation,
 void BasicSc2Bot::InitializeSatelliteLocation() {
   const ObservationInterface *observation = Observation();
   Units mineral_patches =
-        Observation()->GetUnits(Unit::Alliance::Neutral, [](const Unit &unit) {
-          return unit.unit_type == UNIT_TYPEID::NEUTRAL_MINERALFIELD ||
-                 unit.unit_type == UNIT_TYPEID::NEUTRAL_MINERALFIELD750;
-        });
+      Observation()->GetUnits(Unit::Alliance::Neutral, [](const Unit &unit) {
+        return unit.unit_type == UNIT_TYPEID::NEUTRAL_MINERALFIELD ||
+               unit.unit_type == UNIT_TYPEID::NEUTRAL_MINERALFIELD750;
+      });
 
   // Get current base mineral patches (those being harvested)
   const float MIN_DISTANCE = 17.0f; // Minimum distance from current base
@@ -1120,12 +1150,10 @@ void BasicSc2Bot::InitializeSatelliteLocation() {
   float best_distance = std::numeric_limits<float>::max();
 
   for (const auto &mineral : mineral_patches) {
-    float dist_from_current =
-        Distance2D(Point2D(mineral->pos), base_location);
+    float dist_from_current = Distance2D(Point2D(mineral->pos), base_location);
 
     // Skip if too close or too far
-    if (dist_from_current < MIN_DISTANCE ||
-        dist_from_current > MAX_DISTANCE) {
+    if (dist_from_current < MIN_DISTANCE || dist_from_current > MAX_DISTANCE) {
       continue;
     }
 
@@ -1142,8 +1170,6 @@ void BasicSc2Bot::InitializeSatelliteLocation() {
 
   if (new_mineral_target) {
     Point2D mineral_target_pos = Point2D(new_mineral_target->pos);
-    std::cout << "New Mineral Target Pos: " << mineral_target_pos.x << ", "
-              << mineral_target_pos.y << std::endl;
 
     if (satellite_location == Point2D()) {
       satellite_location = FindBuildLocation(
