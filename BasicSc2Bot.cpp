@@ -7,7 +7,7 @@ void BasicSc2Bot::OnStep() {
   if (GameState.step_count < 10) {
     return;
   } else if (GameState.step_count == 10) {
-    InitializeEnemyLocations();
+    GameState.InitializeEnemyLocationsS();
     GameState.GetBaseLocation();
     std::cout << "Go!" << std::endl;
   } else {
