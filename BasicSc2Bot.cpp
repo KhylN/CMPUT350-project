@@ -219,7 +219,7 @@ void BasicSc2Bot::ManageTroopsAndBuildings() {
             << std::endl;
 
   if (GameState.CanAttack()) {
-    std::cout << "Launching attack! Wave: " << current_attack_wave_
+    std::cout << "Launching attack! Wave: " << GameState.current_attack_wave_
               << std::endl;
     LaunchAttack();
   } else {
@@ -230,7 +230,7 @@ void BasicSc2Bot::ManageTroopsAndBuildings() {
 void BasicSc2Bot::LaunchAttack() {
   is_attacking = true;
 
-  Point2D enemy_base_location = GetEnemyBaseLocation();
+  Point2D enemy_base_location = GameState.GetEnemyBaseLocation();
 
     std::cout << "enemy base location: " << enemy_base_location.x << ", "
             << enemy_base_location.y << std::endl;
