@@ -4,9 +4,9 @@ using namespace sc2;
 void BasicSc2Bot::OnStep() {
   GameState.step_count++;
   // Wait for 10 frames
-  if (step_counter < 10) {
+  if (GameState.step_count < 10) {
     return;
-  } else if (step_counter == 10) {
+  } else if (GameState.step_count == 10) {
     InitializeEnemyLocations();
     GameState.GetBaseLocation();
     std::cout << "Go!" << std::endl;
