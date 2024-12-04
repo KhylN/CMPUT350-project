@@ -14,47 +14,47 @@ void BasicSc2Bot::InitializeEnemyLocations() {
   }
 }
 
-void BasicSc2Bot::OnGameStart() {
-  // Initialize the enemy locations
-  InitializeEnemyLocations();
-  GetBaseLocation();
-  InitializeSatelliteLocation();
-  std::cout << "Go!" << std::endl;
-}
-
 void BasicSc2Bot::OnStep() {
-  ManageTroopsAndBuildings();
-  std::cout << "main_base_mineral_patch: " << main_base_mineral_patch.x << ", "
-            << main_base_mineral_patch.y << std::endl
-            << std::endl
-            << std::endl
-            << std::endl;
-  std::cout << "Satellite Location: " << satellite_location.x << ", "
-            << satellite_location.y << std::endl
-            << std::endl
-            << std::endl
-            << std::endl;
+  if (step < 15) {
+    step++;
+    if (step > 10) {
+      InitializeEnemyLocations();
+      GetBaseLocation();
+      InitializeSatelliteLocation();
+    }
+  } else {
+    ManageTroopsAndBuildings();
+    std::cout << "main_base_mineral_patch: " << main_base_mineral_patch.x << ", "
+              << main_base_mineral_patch.y << std::endl
+              << std::endl
+              << std::endl
+              << std::endl;
+    std::cout << "Satellite Location: " << satellite_location.x << ", "
+              << satellite_location.y << std::endl
+              << std::endl
+              << std::endl
+              << std::endl;
 
-  std::cout << "barrack cnt: " << CountUnits(UNIT_TYPEID::TERRAN_BARRACKS)
-            << std::endl;
+    std::cout << "barrack cnt: " << CountUnits(UNIT_TYPEID::TERRAN_BARRACKS)
+              << std::endl;
 
-  std::cout << "Barrack add-on: " << barrack_tech_lab << std::endl
-            << std::endl;
+    std::cout << "Barrack add-on: " << barrack_tech_lab << std::endl
+              << std::endl;
 
-  std::cout << "Stimpack: " << HasUpgrade(Observation(), UPGRADE_ID::STIMPACK)
-            << std::endl;
+    std::cout << "Stimpack: " << HasUpgrade(Observation(), UPGRADE_ID::STIMPACK)
+              << std::endl;
 
-  std::cout << "Shieldwall: "
-            << HasUpgrade(Observation(), UPGRADE_ID::SHIELDWALL) << std::endl
-            << std::endl;
-
+    std::cout << "Shieldwall: "
+              << HasUpgrade(Observation(), UPGRADE_ID::SHIELDWALL) << std::endl
+              << std::endl;
+  }
 }
 
 // Will run every time a unit is idle
 void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
   switch (unit->unit_type.ToType()) {
   case UNIT_TYPEID::TERRAN_COMMANDCENTER: {
-    if (unit->assigned_harvesters < 15 &&
+    if (unit->assigned_harvesters < 18 &&
         // Build SCVs all other times.
         Point2D(unit->pos) == base_location) {
       Actions()->UnitCommand(unit, ABILITY_ID::TRAIN_SCV);
