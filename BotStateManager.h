@@ -55,7 +55,7 @@ class StateManager {
             return std::find(upgrades.begin(), upgrades.end(), upgrade_id) != upgrades.end();
         }
 
-        bool GetUpgradeStatus(sc2::UpgradeID upgrade_id) {
+        bool GetUpgradeStatus(sc2::UPGRADE_ID upgrade_id) {
             switch (upgrade_id) {
                 case(sc2::UPGRADE_ID::STIMPACK): {
                     return stim_done;
@@ -214,14 +214,15 @@ class StateManager {
         int num_scvs{0}, num_marines{0}, num_tanks{0}, num_medivacs{0}, num_mules{0};
 
         // Buildings
-        int num_command_center{0}, num_orbital_command{0}, num_barracks{0}, num_factory{0}, num_starport{0}, num_enggbay{0};}
+        int num_command_center{0}, num_orbital_command{0}, num_barracks{0}, num_factory{0}, num_starport{0}, num_enggbay{0};
 
         // Upgrade Flags
-        bool stim_done = shields_done = false;
+        bool stim_done = false;
+        bool shields_done = false;
 
         const int THRESH = 30;
         std::vector<sc2::Point2D> potential_enemy_locations_;
         sc2::ObservationInterface* observation;
-}
+};
 
 #endif
