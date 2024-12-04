@@ -315,13 +315,25 @@ void BasicSc2Bot::ManageTroopsAndBuildings() {
   }
 }
 
-void BasicSc2Bot::LaunchAttack() {
-  is_attacking = true;
-
-  if (enemy_base_location.x != 0 && enemy_base_location.y != 0) {
-    SendArmyTo(enemy_base_location);
-  }
+sc2::Point2D BasicSc2Bot::CalculateRallyPoint() {
+    return sc2::Point2D((base_location.x + satellite_location.x) / 2,
+                        (base_location.y + satellite_location.y) / 2);
 }
+
+void BasicSc2Bot::LaunchAttack() {
+    is_attacking = true;
+
+    if (enemy_base_location.x != 0 && enemy_base_location.y != 0) {
+        sc2::Point2D rally_point = CalculateRallyPoint();
+
+        // First ensure all troops are at the rally point
+        SendArmyTo(rally_point);
+
+        // Then launch the attack from the rally point to the enemy base
+        SendArmyTo(enemy_base_location);
+    }
+}
+
 
 void BasicSc2Bot::SendArmyTo(const sc2::Point2D &target) {
   sc2::Units marines = Observation()->GetUnits(
@@ -818,77 +830,54 @@ void BasicSc2Bot::ManageAllTroops() {
   // }
 
   // place siege tanks between the satellite and the enemy base
-  Units siegeTanks = Observation()->GetUnits(
-      Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_SIEGETANK));
-  for (const auto &tank : siegeTanks) {
-    if (tank->orders.empty()) {
-      Actions()->UnitCommand(tank, ABILITY_ID::MOVE_MOVE, satellite_location);
-    }
-  }
+    sc2::Point2D rally_point = CalculateRallyPoint();
 
-  // patrol command for Medivacs
-  Units medivacs = Observation()->GetUnits(Unit::Alliance::Self,
-                                           IsUnit(UNIT_TYPEID::TERRAN_MEDIVAC));
-
-  if (!HasSupportableGroundUnits()) {
-    // If no ground units to support, return medivacs to base
-    for (const auto &medivac : medivacs) {
-      if (medivac->orders.empty()) {
-        Actions()->UnitCommand(medivac, ABILITY_ID::MOVE_MOVE,
-                               GetBaseLocation());
-      }
-    }
-  } else {
-    // Find nearest ground unit to support if idle
-    for (const auto &medivac : medivacs) {
-      if (medivac->orders.empty()) {
-        Units marines = Observation()->GetUnits(
-            Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_MARINE));
-        Units marauders = Observation()->GetUnits(
-            Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_MARAUDER));
-
-        float closest_distance = std::numeric_limits<float>::max();
-        const Unit *closest_unit = nullptr;
-
-        // Find closest marine or marauder
-        for (const auto &marine : marines) {
-          float distance = DistanceSquared2D(medivac->pos, marine->pos);
-          if (distance < closest_distance) {
-            closest_distance = distance;
-            closest_unit = marine;
-          }
+    // Send Marines to rally point if idle
+    Units marines = Observation()->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_MARINE));
+    for (const auto &marine : marines) {
+        if (marine->orders.empty() && !is_attacking) {
+            Actions()->UnitCommand(marine, ABILITY_ID::MOVE_MOVE, rally_point);
         }
-
-        for (const auto &marauder : marauders) {
-          float distance = DistanceSquared2D(medivac->pos, marauder->pos);
-          if (distance < closest_distance) {
-            closest_distance = distance;
-            closest_unit = marauder;
-          }
-        }
-
-        if (closest_unit) {
-          Actions()->UnitCommand(medivac, ABILITY_ID::SMART, closest_unit);
-        }
-      }
     }
-  }
 
-  // patrol command for Vikings
-  Units vikings = Observation()->GetUnits(
-      Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_VIKINGFIGHTER));
-  for (const auto &viking : vikings) {
-    if (viking->orders.empty()) {
-      if (satellite_location.x != 0 && satellite_location.y != 0) {
-        Actions()->UnitCommand(viking, ABILITY_ID::MOVE_MOVE,
-                               satellite_location);
-      } else {
-        Actions()->UnitCommand(viking, ABILITY_ID::GENERAL_PATROL,
-                               GetBaseLocation());
-      }
+    // Send Siege Tanks to rally point if idle
+    Units tanks = Observation()->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_SIEGETANK));
+    for (const auto &tank : tanks) {
+        if (tank->orders.empty() && !is_attacking) {
+            Actions()->UnitCommand(tank, ABILITY_ID::MOVE_MOVE, rally_point);
+        }
     }
-  }
+
+    // Handle idle Medivacs
+    Units medivacs = Observation()->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_MEDIVAC));
+    if (!HasSupportableGroundUnits()) {
+        // Return Medivacs to base if no ground units exist
+        for (const auto &medivac : medivacs) {
+            if (medivac->orders.empty()) {
+                Actions()->UnitCommand(medivac, ABILITY_ID::MOVE_MOVE, GetBaseLocation());
+            }
+        }
+    } else {
+        // Follow ground units if idle
+        for (const auto &medivac : medivacs) {
+            if (medivac->orders.empty()) {
+                Units ground_units = Observation()->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_MARINE));
+                if (!ground_units.empty()) {
+                    Actions()->UnitCommand(medivac, ABILITY_ID::SMART, ground_units.front());
+                }
+            }
+        }
+    }
+
+    // Handle Vikings (can be extended based on your strategy)
+    Units vikings = Observation()->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_VIKINGFIGHTER));
+    for (const auto &viking : vikings) {
+        if (viking->orders.empty()) {
+            Actions()->UnitCommand(viking, ABILITY_ID::MOVE_MOVE, rally_point);
+        }
+    }
 }
+
 
 // MODULAR UNIT TRAINING FUNCTIONS
 void BasicSc2Bot::ManageCC() {
