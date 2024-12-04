@@ -92,7 +92,6 @@
         "scoped_allocator": "cpp",
         "typeindex": "cpp",
         "valarray": "cpp",
-        "variant": "cpp",
-        "*.inc": "cpp"
+        "variant": "cpp"
     }
 }

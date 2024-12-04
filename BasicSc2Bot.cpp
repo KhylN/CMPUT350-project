@@ -1,21 +1,49 @@
 #include "BasicSc2Bot.h"
-#include "BotStateManager.h"
 using namespace sc2;
 
-StateManager GameState(sc2::ObservationInterface *observation = Observation());
+void BasicSc2Bot::InitializeEnemyLocations() {
+  const sc2::GameInfo &game_info = Observation()->GetGameInfo();
+  for (const sc2::Point2D &starting_location :
+       game_info.enemy_start_locations) {
+    potential_enemy_locations_.push_back(starting_location);
+  }
+}
 
 void BasicSc2Bot::OnStep() {
-  GameState.step_count++;
-  // Wait for 10 frames
-  if (GameState.step_count < 10) {
-    return;
-  } else if (GameState.step_count == 10) {
-    GameState.InitializeEnemyLocations();
-    GameState.GetBaseLocation();
-    std::cout << "Go!" << std::endl;
+  if (step < 15) {
+    step++;
+    if (step > 10) {
+      InitializeEnemyLocations();
+      GetBaseLocation();
+      InitializeSatelliteLocation();
+    }
   } else {
-    GameState.GetCurrentState();
     ManageTroopsAndBuildings();
+    // std::cout << "main_base_mineral_patch: " << main_base_mineral_patch.x
+    //           << ", " << main_base_mineral_patch.y << std::endl
+    //           << std::endl
+    //           << std::endl
+    //           << std::endl;
+    // std::cout << "Satellite Location: " << satellite_location.x << ", "
+    //           << satellite_location.y << std::endl
+    //           << std::endl
+    //           << std::endl
+    //           << std::endl;
+
+    // std::cout << "barrack cnt: " << CountUnits(UNIT_TYPEID::TERRAN_BARRACKS)
+    //           << std::endl;
+
+    // std::cout << "Barrack add-on: " << barrack_tech_lab << std::endl
+    //           << std::endl;
+
+    // std::cout << "Stimpack: " << HasUpgrade(Observation(),
+    // UPGRADE_ID::STIMPACK)
+    //           << std::endl;
+
+    // std::cout << "Shieldwall: "
+    //           << HasUpgrade(Observation(), UPGRADE_ID::SHIELDWALL) <<
+    //           std::endl
+    //           << std::endl;
   }
 }
 
@@ -23,19 +51,19 @@ void BasicSc2Bot::OnStep() {
 void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
   switch (unit->unit_type.ToType()) {
   case UNIT_TYPEID::TERRAN_COMMANDCENTER: {
-    if (unit->assigned_harvesters < 21 &&
+    if (unit->assigned_harvesters < 18 &&
         // Build SCVs all other times.
-        Point2D(unit->pos) == GameState.GetBaseLocation()) {
+        Point2D(unit->pos) == base_location) {
       Actions()->UnitCommand(unit, ABILITY_ID::TRAIN_SCV);
     }
     break;
   }
   case UNIT_TYPEID::TERRAN_ORBITALCOMMAND: {
-    if (GameState.GetUnitCount(UNIT_TYPEID::TERRAN_MULE) < 4) {
+    if (CountUnits(UNIT_TYPEID::TERRAN_MULE) < 4) {
       Actions()->UnitCommand(unit, ABILITY_ID::EFFECT_CALLDOWNMULE,
-                             GameState.FindNearestMineralPatch(GameState.GetSatelliteLocation()));
+                             FindNearestMineralPatch(satellite_location));
     }
-    if (unit->assigned_harvesters < 21) {
+    if (unit->assigned_harvesters < 10) {
       Actions()->UnitCommand(unit, ABILITY_ID::TRAIN_SCV);
     }
     break;
@@ -43,9 +71,9 @@ void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
 
   case UNIT_TYPEID::TERRAN_SCV: {
     // TODO: Try to prioritize some SCVs to find gas as opposed to mineral.
-    const Unit *mineral_target = GameState.FindNearestMineralPatch(unit->pos);
+    const Unit *mineral_target = FindNearestMineralPatch(unit->pos);
     main_base_mineral_patch = Point2D(mineral_target->pos);
-    const Unit *gas_target = GameState.FindNearestVespene(unit->pos);
+    const Unit *gas_target = FindNearestVespene(unit->pos);
 
     if (mineral_target) {
       Actions()->UnitCommand(unit, ABILITY_ID::SMART, mineral_target);
@@ -57,7 +85,7 @@ void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
     break;
   }
   case UNIT_TYPEID::TERRAN_MULE: {
-    const Unit *mineral_target = GameState.FindNearestMineralPatch(unit->pos);
+    const Unit *mineral_target = FindNearestMineralPatch(unit->pos);
     Point2D second_base_mineral_patch = Point2D(mineral_target->pos);
 
     if (mineral_target) {
@@ -78,6 +106,17 @@ void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
     if (game_info.enemy_start_locations.empty()) {
       break; // No enemy start locations to scout
     }
+
+    // if (scout_died) {
+    //   // If the scout Marine is dead, ensure all other Marines are patrolling
+    //   for (const auto &marine : marines) {
+    //     if (marine->orders.empty()) {
+    //       Actions()->UnitCommand(marine, ABILITY_ID::GENERAL_PATROL,
+    //                              GetBaseLocation());
+    //     }
+    //   }
+    //   break; // Exit the case since no further scouting is needed
+    // }
 
     for (const auto &marine : marines) {
       if (scout_marine_id == 0) {
@@ -102,7 +141,7 @@ void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
       } else {
         if (marine->orders.empty() && !is_attacking) {
           Actions()->UnitCommand(marine, ABILITY_ID::MOVE_MOVE,
-                                 GameState.GetSatelliteLocation());
+                                 satellite_location);
         }
       }
     }
@@ -122,11 +161,10 @@ void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
       // set the enemy base location
       enemy_base_location =
           game_info.enemy_start_locations[current_target_index];
-      GameState.SetEnemyBaseLocation(enemy_base_location);
-      std::cout << "Enemy base location identified: " << enemy_base_location.x
-                << ", " << enemy_base_location.y << std::endl;
+      // std::cout << "Enemy base location identified: " <<
+      // enemy_base_location.x
+      //          << ", " << enemy_base_location.y << std::endl;
     }
-
     break;
   }
   default:
@@ -142,6 +180,49 @@ void BasicSc2Bot::ManageSCVs() {
   Units refineries = observation->GetUnits(
       Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_REFINERY));
   // Assign SCVs to refineries
+
+  // Assign Satellite Base Builder and sent to crystals as early as possible
+
+  if (satellite_location != Point2D() &&
+      ((CountUnits(UNIT_TYPEID::TERRAN_COMMANDCENTER) == 1))) {
+    // Once satellite base location is defined and as long as we do not yet have
+    // a 2nd base established, we assign one SCV to the crystals.
+    if (scv_at_build_site_id == 0) {
+      // If no SCV yet assigned, do so and mark down its ID
+      for (const auto &scv : scvs) {
+        if ((scv->orders.empty() ||
+             scv->orders.front().ability_id == ABILITY_ID::HARVEST_GATHER) &&
+            satellite_location != Point2D()) {
+          // Assign 1st free SCV to be the satellite builder if available.
+          scv_at_build_site_id = scv->tag;
+          Actions()->UnitCommand(scv, ABILITY_ID::SMART, satellite_location);
+          break;
+        }
+      }
+    } else {
+      // If SCV is assigned, ensure it remains at the extra crystals until its
+      // ordered to build the base
+      for (const auto &scv : scvs) {
+        // Look for the assigned SCV
+        if (scv->tag == scv_at_build_site_id) {
+          if (scv->orders.empty()) {
+            Actions()->UnitCommand(scv, ABILITY_ID::SMART, satellite_location);
+          }
+          bool is_building_cc = false;
+          for (const auto &order : scv->orders) {
+            if (order.ability_id == ABILITY_ID::BUILD_COMMANDCENTER) {
+              is_building_cc = true;
+              break;
+            }
+          }
+          if (!is_building_cc) {
+            Actions()->UnitCommand(scv, ABILITY_ID::SMART, satellite_location);
+          }
+        }
+      }
+    }
+  }
+
   for (const auto &refinery : refineries) {
     int scv_count = 0;
 
@@ -159,6 +240,7 @@ void BasicSc2Bot::ManageSCVs() {
         if (scv_count >= 3) {
           break; // Stop assigning SCVs once the max is reached
         }
+
         // Only select idle SCVs or those not assigned to other tasks
         for (const auto &order : scv->orders) {
           if (order.ability_id == ABILITY_ID::BUILD_SUPPLYDEPOT ||
@@ -193,21 +275,22 @@ void BasicSc2Bot::ManageSCVs() {
 }
 
 void BasicSc2Bot::ManageTroopsAndBuildings() {
+  ManageCC();
+
   TryBuildRefinery();
   TryBuildSupplyDepot();
-  TryBuildBarracks();
-
-  ManageSCVs();
+  TryMorphSupplyDepot();
 
   TryBuildNewCC();
   ManageSecondBase();
 
+  TryBuildBarracks();
+
+  ManageSCVs();
+
   TryBuildEnggBay();
 
-  TryMorphSupplyDepot();
   ManageBarracks();
-
-  // TryBuildMissileTurret();
 
   TryBuildStarport();
   ManageStarport();
@@ -215,15 +298,17 @@ void BasicSc2Bot::ManageTroopsAndBuildings() {
   TryBuildFactory();
   ManageFactory();
 
+  bool can_attack = MilitaryStrength();
+  // std::cout << "Marines: " << CountUnits(UNIT_TYPEID::TERRAN_MARINE)
+  //           << " Hellions: " << CountUnits(UNIT_TYPEID::TERRAN_HELLION)
+  //           << " Vikings: " << CountUnits(UNIT_TYPEID::TERRAN_VIKINGFIGHTER)
+  //           << " Medivacs: " << CountUnits(UNIT_TYPEID::TERRAN_MEDIVAC)
+  //           << " Tanks: " << CountUnits(UNIT_TYPEID::TERRAN_SIEGETANK)
+  //           << std::endl;
 
-  std::cout << "Marines: " << GameState.GetUnitCount(UNIT_TYPEID::TERRAN_MARINE)
-            << " Medivacs: " << GameState.GetUnitCount(UNIT_TYPEID::TERRAN_MEDIVAC)
-            << " Tanks: " << GameState.GetUnitCount(UNIT_TYPEID::TERRAN_SIEGETANK)
-            << std::endl;
-
-  if (GameState.CanAttack()) {
-    std::cout << "Launching attack! Wave: " << GameState.current_attack_wave_
-              << std::endl;
+  if (can_attack) {
+    // std::cout << "Launching attack! Wave: " << current_attack_wave_
+    //           << std::endl;
     LaunchAttack();
   } else {
     ManageAllTroops();
@@ -233,12 +318,7 @@ void BasicSc2Bot::ManageTroopsAndBuildings() {
 void BasicSc2Bot::LaunchAttack() {
   is_attacking = true;
 
-  Point2D enemy_base_location = GameState.GetEnemyBaseLocation();
-
-    std::cout << "enemy base location: " << enemy_base_location.x << ", "
-            << enemy_base_location.y << std::endl;
-
-  if (GameState.GetEnemyBaseLocation() != Point2D()) {
+  if (enemy_base_location.x != 0 && enemy_base_location.y != 0) {
     SendArmyTo(enemy_base_location);
   }
 }
@@ -261,8 +341,8 @@ void BasicSc2Bot::SendArmyTo(const sc2::Point2D &target) {
                               sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_MARAUDER));
 
   // Calculate formation points
-  sc2::Point2D rally_point = sc2::Point2D((target.x + GameState.GetBaseLocation().x) / 2,
-                                          (target.y + GameState.GetBaseLocation().y) / 2);
+  sc2::Point2D rally_point = sc2::Point2D((target.x + GetBaseLocation().x) / 2,
+                                          (target.y + GetBaseLocation().y) / 2);
 
   // Create groups for medivac support assignment
   std::vector<const sc2::Unit *> ground_units;
@@ -273,15 +353,21 @@ void BasicSc2Bot::SendArmyTo(const sc2::Point2D &target) {
 
   // Send tanks first to establish position
   for (const auto &tank : tanks) {
-    Actions()->UnitCommand(tank, sc2::ABILITY_ID::ATTACK_ATTACK, target);
+    if (tank->orders.empty()) {
+      Actions()->UnitCommand(tank, sc2::ABILITY_ID::ATTACK_ATTACK, target);
+    }
   }
 
   // Send ground units
   for (const auto &unit : ground_units) {
-    Actions()->UnitCommand(unit, sc2::ABILITY_ID::ATTACK_ATTACK, target);
+    if (unit->orders.empty()) {
+      Actions()->UnitCommand(unit, sc2::ABILITY_ID::ATTACK_ATTACK, target);
+    }
   }
   for (const auto &hellion : hellions) {
-    Actions()->UnitCommand(hellion, sc2::ABILITY_ID::ATTACK_ATTACK, target);
+    if (hellion->orders.empty()) {
+      Actions()->UnitCommand(hellion, sc2::ABILITY_ID::ATTACK_ATTACK, target);
+    }
   }
 
   // Assign medivacs to follow ground units
@@ -302,19 +388,51 @@ void BasicSc2Bot::SendArmyTo(const sc2::Point2D &target) {
   // If no ground units are alive, send medivacs back to base
   else if (ground_units.empty() && !medivacs.empty()) {
     for (const auto &medivac : medivacs) {
-      Actions()->UnitCommand(medivac, sc2::ABILITY_ID::MOVE_MOVE,
-                              GameState.GetBaseLocation());
+      if (medivac->orders.empty()) {
+        Actions()->UnitCommand(medivac, sc2::ABILITY_ID::MOVE_MOVE,
+                               GetBaseLocation());
+      }
     }
   }
 
   // Send vikings last
   for (const auto &viking : vikings) {
-    Actions()->UnitCommand(viking, sc2::ABILITY_ID::ATTACK_ATTACK, target);
+    if (viking->orders.empty()) {
+      Actions()->UnitCommand(viking, sc2::ABILITY_ID::ATTACK_ATTACK, target);
+    }
+  }
+
+  // Clean up: Check for idle units and direct them to attack nearby enemies
+  sc2::Units enemies = Observation()->GetUnits(Unit::Alliance::Enemy);
+  for (const auto &unit : ground_units) {
+    if (unit->orders.empty() && !enemies.empty()) {
+      Actions()->UnitCommand(unit, sc2::ABILITY_ID::ATTACK_ATTACK,
+                             enemies.front()->pos);
+    }
+  }
+  for (const auto &tank : tanks) {
+    if (tank->orders.empty() && !enemies.empty()) {
+      Actions()->UnitCommand(tank, sc2::ABILITY_ID::ATTACK_ATTACK,
+                             enemies.front()->pos);
+    }
+  }
+  for (const auto &hellion : hellions) {
+    if (hellion->orders.empty() && !enemies.empty()) {
+      Actions()->UnitCommand(hellion, sc2::ABILITY_ID::ATTACK_ATTACK,
+                             enemies.front()->pos);
+    }
+  }
+  for (const auto &viking : vikings) {
+    if (viking->orders.empty() && !enemies.empty()) {
+      Actions()->UnitCommand(viking, sc2::ABILITY_ID::ATTACK_ATTACK,
+                             enemies.front()->pos);
+    }
   }
 }
 
 bool BasicSc2Bot::HasSupportableGroundUnits() {
-  return GameState.GetUnitCount(UNIT_TYPEID::TERRAN_MARINE) > 0;
+  return CountUnits(UNIT_TYPEID::TERRAN_MARINE) > 0 ||
+         CountUnits(UNIT_TYPEID::TERRAN_MARAUDER) > 0;
 }
 
 // Attempts to build specified structures - from tutorial
@@ -327,6 +445,19 @@ bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure) {
                                       IsUnit(UNIT_TYPEID::TERRAN_SCV));
   for (const auto &unit : units) {
     bool unit_is_busy = false;
+
+    if (unit->tag == scv_at_build_site_id &&
+        ability_type_for_structure != ABILITY_ID::BUILD_COMMANDCENTER) {
+      continue;
+    }
+
+    if (unit->tag == scv_at_build_site_id &&
+        ability_type_for_structure == ABILITY_ID::BUILD_COMMANDCENTER) {
+
+      unit_to_build = unit;
+      std::cout << unit_to_build->tag << std::endl;
+      break;
+    }
 
     // Check if unit is already assigned to a building task
     for (const auto &order : unit->orders) {
@@ -344,10 +475,19 @@ bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure) {
         unit_is_busy = true;
         break;
       }
+      if (order.ability_id == ABILITY_ID::HARVEST_GATHER ||
+          order.ability_id == ABILITY_ID::HARVEST_RETURN) {
+        break;
+      }
     }
 
     // Select an idle unit that matches the required type
     if (!unit_is_busy) {
+      // Ennsure emplaced SCV is the only one to build new CC
+      if (unit->tag != scv_at_build_site_id &&
+          ability_type_for_structure == ABILITY_ID::BUILD_COMMANDCENTER) {
+        continue;
+      }
       unit_to_build = unit;
       break;
     }
@@ -360,14 +500,14 @@ bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure) {
   }
 
   // Find a valid build location near the base
-  Point2D base_location =  GameState.GetBaseLocation();
+  Point2D base_location = GetBaseLocation();
   Point2D build_location = Point2D();
   if (ability_type_for_structure == ABILITY_ID::BUILD_MISSILETURRET) {
     build_location =
         FindBuildLocation(base_location, ability_type_for_structure, 4);
   } else if (ability_type_for_structure == ABILITY_ID::BUILD_COMMANDCENTER) {
-    if (GameState.GetSatelliteLocation() != Point2D()) {
-      build_location = GameState.GetSatelliteLocation();
+    if (satellite_location != Point2D()) {
+      build_location = satellite_location;
     } else {
       return false;
     }
@@ -378,12 +518,12 @@ bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure) {
 
   if (build_location ==
       Point2D()) { // Check if FindBuildLocation returned a valid location
-    std::cerr << "No valid build location found for structure: "
-              << static_cast<int>(ability_type_for_structure) << std::endl;
+    // std::cerr << "No valid build location found for structure: "
+    //           << static_cast<int>(ability_type_for_structure) << std::endl;
     return false;
   } else {
-    std::cout << "Build location found at: (" << build_location.x << ", "
-              << build_location.y << ")" << std::endl;
+    // std::cout << "Build location found at: (" << build_location.x << ", "
+    //           << build_location.y << ")" << std::endl;
   }
 
   // Check resources before issuing the build command
@@ -401,10 +541,12 @@ bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure) {
                          build_location);
 
   //
-  std::cout << "Issued build command to unit: " << unit_to_build->tag
-            << " for structure: "
-            << static_cast<int>(ability_type_for_structure) << " at location: ("
-            << build_location.x << ", " << build_location.y << ")" << std::endl;
+  // std::cout << "Issued build command to unit: " << unit_to_build->tag
+  //           << " for structure: "
+  //           << static_cast<int>(ability_type_for_structure) << " at location:
+  //           ("
+  //           << build_location.x << ", " << build_location.y << ")" <<
+  //           std::endl;
 
   return true;
 }
@@ -463,12 +605,23 @@ void BasicSc2Bot::TryBuildRefinery() {
   Units geysers = observation->GetUnits(
       Unit::Alliance::Neutral, IsUnit(UNIT_TYPEID::NEUTRAL_VESPENEGEYSER));
 
-  if (GameState.GetUnitCount(UNIT_TYPEID::TERRAN_REFINERY) < 1 ||
-      (GameState.GetUnitCount(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 0 &&
-       GameState.GetUnitCount(UNIT_TYPEID::TERRAN_REFINERY) < 2)) {
+  Units space_platform_geysers =
+      observation->GetUnits(Unit::Alliance::Neutral,
+                            IsUnit(UNIT_TYPEID::NEUTRAL_SPACEPLATFORMGEYSER));
+
+  if (space_platform_geysers.size() > geysers.size()) {
+    geysers = space_platform_geysers;
+  }
+
+  if ((CountUnits(UNIT_TYPEID::TERRAN_REFINERY) < 1 &&
+       (CountUnits(UNIT_TYPEID::TERRAN_SUPPLYDEPOT) > 0 ||
+        CountUnits(UNIT_TYPEID::TERRAN_SUPPLYDEPOTLOWERED) > 0) &&
+       CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) > 0) ||
+      (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 0 &&
+       CountUnits(UNIT_TYPEID::TERRAN_REFINERY) < 2)) {
     for (const auto &geyser : geysers) {
       // Check distance from the base
-      float distance = Distance2D(geyser->pos, GameState.GetBaseLocation());
+      float distance = Distance2D(geyser->pos, base_location);
       if (distance < 20.0f) { // Only consider geysers within 20 units
         for (const auto &scv : scvs) {
           // Only select SCVs that are not currently harvesting or building
@@ -477,13 +630,13 @@ void BasicSc2Bot::TryBuildRefinery() {
         }
       }
     }
-  } else if (GameState.GetUnitCount(UNIT_TYPEID::TERRAN_REFINERY) < 3 &&
-             GameState.GetUnitCount(UNIT_TYPEID::TERRAN_MARINE) > 6 &&
-             GameState.GetUpgradeStatus(UPGRADE_ID::STIMPACK) &&
-             GameState.GetUpgradeStatus(UPGRADE_ID::COMBATSHIELD)) {
+  } else if (CountUnits(UNIT_TYPEID::TERRAN_REFINERY) < 3 &&
+             CountUnits(UNIT_TYPEID::TERRAN_MARINE) > 6 &&
+             HasUpgrade(Observation(), UPGRADE_ID::STIMPACK) &&
+             HasUpgrade(Observation(), UPGRADE_ID::SHIELDWALL)) {
     for (const auto &geyser : geysers) {
       // Check distance from the SATELLITE base
-      float distance = Distance2D(geyser->pos, GameState.GetSatelliteLocation());
+      float distance = Distance2D(geyser->pos, satellite_location);
       if (distance < 20.0f) { // Only consider geysers within 20 units of the
                               // satellite base
         for (const auto &scv : scvs) {
@@ -498,7 +651,7 @@ void BasicSc2Bot::TryBuildRefinery() {
             }
           }
 
-          if (Distance2D(scv->pos, GameState.GetSatelliteLocation()) < 20.0f &&
+          if (Distance2D(scv->pos, satellite_location) < 20.0f &&
               !isBuildingRefinery) {
             Actions()->UnitCommand(scv, ABILITY_ID::BUILD_REFINERY, geyser);
             break;
@@ -515,13 +668,24 @@ bool BasicSc2Bot::TryBuildSupplyDepot() {
   // Calculate current and planned supply capacity
   int current_supply_cap = observation->GetFoodCap();
   int used_supply = observation->GetFoodUsed();
-  int supply_depots_in_progress = GameState.GetUnitCount(UNIT_TYPEID::TERRAN_SUPPLYDEPOT);
+  int supply_depots_in_progress = CountUnits(UNIT_TYPEID::TERRAN_SUPPLYDEPOT);
 
   // Avoid building if there are already enough depots being built
-  if (used_supply > current_supply_cap - 2 && supply_depots_in_progress < 1) {
+  if ((CountUnits(UNIT_TYPEID::TERRAN_SUPPLYDEPOT) < 1) &&
+      CountUnits(UNIT_TYPEID::TERRAN_SUPPLYDEPOTLOWERED) < 1) {
     return TryBuildStructure(ABILITY_ID::BUILD_SUPPLYDEPOT);
   }
 
+  if (used_supply > current_supply_cap - 5 && supply_depots_in_progress < 2 &&
+      CountUnits(UNIT_TYPEID::TERRAN_REFINERY) > 0 &&
+      CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) > 2) {
+    return TryBuildStructure(ABILITY_ID::BUILD_SUPPLYDEPOT);
+  }
+
+  if (used_supply > current_supply_cap - 9 && supply_depots_in_progress < 3 &&
+      CountUnits(UNIT_TYPEID::TERRAN_REFINERY) > 0) {
+    return TryBuildStructure(ABILITY_ID::BUILD_SUPPLYDEPOT);
+  }
   return false;
 }
 
@@ -530,7 +694,7 @@ bool BasicSc2Bot::TryMorphSupplyDepot() {
   const ObservationInterface *observation = Observation();
   Units supply_depots = Observation()->GetUnits(
       Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_SUPPLYDEPOT));
-  if (GameState.GetUnitCount(UNIT_TYPEID::TERRAN_SUPPLYDEPOT) > 0) {
+  if (CountUnits(UNIT_TYPEID::TERRAN_SUPPLYDEPOT) > 0) {
     // If there are eligible Supply Depots, attempt to lower them.
     for (const auto *supply_depot : supply_depots) {
       if (supply_depot->orders.empty()) {
@@ -548,15 +712,20 @@ bool BasicSc2Bot::TryMorphSupplyDepot() {
 bool BasicSc2Bot::TryBuildBarracks() {
   // Build barracks if we have fewer than 1.
   const ObservationInterface *observation = Observation();
-  if (GameState.GetUnitCount(UNIT_TYPEID::TERRAN_BARRACKS) < 1) {
+  if (CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) < 1 &&
+      ((CountUnits(UNIT_TYPEID::TERRAN_SUPPLYDEPOT) > 0) ||
+       CountUnits(UNIT_TYPEID::TERRAN_SUPPLYDEPOTLOWERED) > 0)) {
     return TryBuildStructure(ABILITY_ID::BUILD_BARRACKS);
-  } else if (GameState.GetUnitCount(UNIT_TYPEID::TERRAN_BARRACKS) < 2 &&
-             GameState.GetUnitCount(UNIT_TYPEID::TERRAN_COMMANDCENTER) > 1) {
+  } else if (CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) < 2 &&
+             CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 0) {
     return TryBuildStructure(ABILITY_ID::BUILD_BARRACKS);
-  } else if (GameState.GetUnitCount(UNIT_TYPEID::TERRAN_BARRACKS) < 3 &&
-             GameState.GetUnitCount(UNIT_TYPEID::TERRAN_MARINE) > 6 &&
-             GameState.GetUpgradeStatus(UPGRADE_ID::STIMPACK) &&
-             GameState.GetUpgradeStatus(UPGRADE_ID::COMBATSHIELD)) {
+  } else if (CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) < 3 &&
+             CountUnits(UNIT_TYPEID::TERRAN_MARINE) > 6 &&
+             HasUpgrade(Observation(), UPGRADE_ID::SHIELDWALL)) {
+    return TryBuildStructure(ABILITY_ID::BUILD_BARRACKS);
+  } else if (HasUpgrade(Observation(), UPGRADE_ID::STIMPACK) &&
+             CountUnits(UNIT_TYPEID::TERRAN_STARPORT) > 0 &&
+             CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) < 5) {
     return TryBuildStructure(ABILITY_ID::BUILD_BARRACKS);
   }
   return false;
@@ -565,54 +734,8 @@ bool BasicSc2Bot::TryBuildBarracks() {
 bool BasicSc2Bot::TryBuildNewCC() {
   // Build satellite command center to facilitate more eco. Built immediately
   // after 1st Vespene
-  if (GameState.GetUnitCount(UNIT_TYPEID::TERRAN_REFINERY) > 0 && !GameState.GetSatelliteBuilt()) {
-    Units mineral_patches =
-        Observation()->GetUnits(Unit::Alliance::Neutral, [](const Unit &unit) {
-          return unit.unit_type == UNIT_TYPEID::NEUTRAL_MINERALFIELD ||
-                 unit.unit_type == UNIT_TYPEID::NEUTRAL_MINERALFIELD750;
-        });
-
-    // Get current base mineral patches (those being harvested)
-    const float MIN_DISTANCE = 17.0f; // Minimum distance from current base
-    const float MAX_DISTANCE = 35.0f; // Maximum distance for expansion
-
-    // Find a mineral patch that's at an appropriate distance
-    const Unit *new_mineral_target = nullptr;
-    float best_distance = std::numeric_limits<float>::max();
-
-    for (const auto &mineral : mineral_patches) {
-      float dist_from_current =
-          Distance2D(Point2D(mineral->pos), GameState.GetBaseLocation());
-
-      // Skip if too close or too far
-      if (dist_from_current < MIN_DISTANCE ||
-          dist_from_current > MAX_DISTANCE) {
-        continue;
-      }
-
-      // Find the mineral patch closest to our ideal distance
-      // (which is halfway between min and max)
-      float ideal_distance = (MIN_DISTANCE + MAX_DISTANCE) / 2;
-      float distance_from_ideal = std::abs(dist_from_current - ideal_distance);
-
-      if (distance_from_ideal < best_distance) {
-        best_distance = distance_from_ideal;
-        new_mineral_target = mineral;
-      }
-    }
-
-    if (new_mineral_target) {
-      Point2D mineral_target_pos = Point2D(new_mineral_target->pos);
-      std::cout << "New Mineral Target Pos: " << mineral_target_pos.x << ", "
-                << mineral_target_pos.y << std::endl;
-
-      if (GameState.GetSatelliteLocation() == Point2D()) {
-        GameState.SetEnemyBaseLocation(FindBuildLocation(
-            mineral_target_pos, ABILITY_ID::BUILD_COMMANDCENTER, 6.0f));
-      }
-
-      return TryBuildStructure(ABILITY_ID::BUILD_COMMANDCENTER);
-    }
+  if (CountUnits(UNIT_TYPEID::TERRAN_REFINERY) > 0 && !satellite_built) {
+    return TryBuildStructure(ABILITY_ID::BUILD_COMMANDCENTER);
   }
   return false;
 }
@@ -621,10 +744,9 @@ bool BasicSc2Bot::TryBuildEnggBay() {
   const ObservationInterface *observation = Observation();
   // Build Engineering Bay if we have built or satellite base.
   // Check if all barracks have a tech lab
-  if (GameState.GetUnitCount(UNIT_TYPEID::TERRAN_ENGINEERINGBAY) < 1 &&
-      GameState.GetUnitCount(UNIT_TYPEID::TERRAN_MARINE) > 6 &&
-      GameState.GetUpgradeStatus(UPGRADE_ID::STIMPACK) &&
-      GameState.GetUpgradeStatus(UPGRADE_ID::COMBATSHIELD)) {
+  if (CountUnits(UNIT_TYPEID::TERRAN_ENGINEERINGBAY) < 1 &&
+      CountUnits(UNIT_TYPEID::TERRAN_MARINE) > 6 &&
+      HasUpgrade(Observation(), UPGRADE_ID::SHIELDWALL)) {
     // check if an scv is already building an engg bay
     Units scvs = Observation()->GetUnits(Unit::Alliance::Self,
                                          IsUnit(UNIT_TYPEID::TERRAN_SCV));
@@ -640,26 +762,23 @@ bool BasicSc2Bot::TryBuildEnggBay() {
   return false;
 }
 
-/*
 bool BasicSc2Bot::TryBuildMissileTurret() {
   // Build MissileTurret if we have an Engineering Bay (prereq) and if we have
   // no more than 3.
-  if (GameState.GetUnitCount(UNIT_TYPEID::TERRAN_ENGINEERINGBAY) > 0 &&
-      GameState.GetUnitCount(UNIT_TYPEID::TERRAN_MISSILETURRET) < 3 &&
-      GameState.GetUnitCount(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 0) {
+  if (CountUnits(UNIT_TYPEID::TERRAN_ENGINEERINGBAY) > 0 &&
+      CountUnits(UNIT_TYPEID::TERRAN_MISSILETURRET) < 3 &&
+      CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 0) {
     return TryBuildStructure(ABILITY_ID::BUILD_MISSILETURRET);
   }
   return false;
 }
-*/
 
 bool BasicSc2Bot::TryBuildStarport() {
   const ObservationInterface *observation = Observation();
   // Build Starport if we don't have one and if we have a Factory.
-  if (GameState.GetUnitCount(UNIT_TYPEID::TERRAN_STARPORT) < 1 &&
-      GameState.GetUnitCount(UNIT_TYPEID::TERRAN_MARINE) > 6 &&
-      GameState.GetUpgradeStatus(UPGRADE_ID::STIMPACK) &&
-      GameState.GetUpgradeStatus(UPGRADE_ID::COMBATSHIELD)) {
+  if (CountUnits(UNIT_TYPEID::TERRAN_STARPORT) < 1 &&
+      CountUnits(UNIT_TYPEID::TERRAN_MARINE) > 6 &&
+      HasUpgrade(Observation(), UPGRADE_ID::SHIELDWALL)) {
     return TryBuildStructure(ABILITY_ID::BUILD_STARPORT);
   }
   return false;
@@ -667,9 +786,8 @@ bool BasicSc2Bot::TryBuildStarport() {
 
 bool BasicSc2Bot::TryBuildFactory() {
   // Build Factory if we have built the satellite base.
-  if (GameState.GetUnitCount(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 0 ||
-      GameState.GetUnitCount(UNIT_TYPEID::TERRAN_COMMANDCENTER) > 1) {
-    if (GameState.GetUnitCount(UNIT_TYPEID::TERRAN_FACTORY) < 1) {
+  if (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 0) {
+    if (CountUnits(UNIT_TYPEID::TERRAN_FACTORY) < 1) {
       return TryBuildStructure(ABILITY_ID::BUILD_FACTORY);
     }
   }
@@ -678,12 +796,33 @@ bool BasicSc2Bot::TryBuildFactory() {
 
 // TROOP MANAGEMENT
 void BasicSc2Bot::ManageAllTroops() {
+
+  // patrol command for Siege Tanks
+  // Units siegeTanks = Observation()->GetUnits(
+  //     Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_SIEGETANK));
+  // for (const auto &tank : siegeTanks) {
+  //   // Other idle Marines should patrol
+  //   Point2D patrolArea;
+  //   float rx = GetRandomScalar();
+  //   float ry = GetRandomScalar();
+
+  //   if (tank->orders.empty() && !is_attacking) {
+  //     if (satellite_location.x != 0 && satellite_location.y != 0) {
+  //       patrolArea = Point2D(satellite_location.x + rx * 10.0f,
+  //                            satellite_location.y + ry * 20.0f);
+  //     } else {
+  //       patrolArea = GetBaseLocation();
+  //     }
+  //     Actions()->UnitCommand(tank, ABILITY_ID::GENERAL_PATROL, patrolArea);
+  //   }
+  // }
+
   // place siege tanks between the satellite and the enemy base
   Units siegeTanks = Observation()->GetUnits(
       Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_SIEGETANK));
   for (const auto &tank : siegeTanks) {
     if (tank->orders.empty()) {
-      Actions()->UnitCommand(tank, ABILITY_ID::MOVE_MOVE, GameState.GetSatelliteLocation());
+      Actions()->UnitCommand(tank, ABILITY_ID::MOVE_MOVE, satellite_location);
     }
   }
 
@@ -696,7 +835,7 @@ void BasicSc2Bot::ManageAllTroops() {
     for (const auto &medivac : medivacs) {
       if (medivac->orders.empty()) {
         Actions()->UnitCommand(medivac, ABILITY_ID::MOVE_MOVE,
-                                GameState.GetBaseLocation());
+                               GetBaseLocation());
       }
     }
   } else {
@@ -740,24 +879,34 @@ void BasicSc2Bot::ManageAllTroops() {
       Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_VIKINGFIGHTER));
   for (const auto &viking : vikings) {
     if (viking->orders.empty()) {
-      if (GameState.GetSatelliteLocation().x != 0 && GameState.GetSatelliteLocation().y != 0) {
+      if (satellite_location.x != 0 && satellite_location.y != 0) {
         Actions()->UnitCommand(viking, ABILITY_ID::MOVE_MOVE,
-                               GameState.GetSatelliteLocation());
+                               satellite_location);
       } else {
         Actions()->UnitCommand(viking, ABILITY_ID::GENERAL_PATROL,
-                                GameState.GetBaseLocation());
+                               GetBaseLocation());
       }
     }
   }
 }
 
 // MODULAR UNIT TRAINING FUNCTIONS
+void BasicSc2Bot::ManageCC() {
+  Units cc = Observation()->GetUnits(
+      // If satellite base upgraded to Orbital Command, then the same must be
+      // done to the main base.
+      Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_COMMANDCENTER));
+  if (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 0) {
+    Actions()->UnitCommand(cc, ABILITY_ID::MORPH_ORBITALCOMMAND);
+  }
+}
 
 void BasicSc2Bot::ManageBarracks() {
+  const ObservationInterface *observation = Observation();
   Units barracks = Observation()->GetUnits(
       Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_BARRACKS));
 
-  if (GameState.GetSatelliteBuilt()) {
+  if (satellite_built) {
 
     // count the number of tech labs attached to barracks
     int tech_labs = 0;
@@ -777,16 +926,17 @@ void BasicSc2Bot::ManageBarracks() {
       const Unit *add_on = Observation()->GetUnit(barrack->add_on_tag);
 
       if (barrack->add_on_tag == NullTag &&
-          (GameState.GetUnitCount(UNIT_TYPEID::TERRAN_BARRACKS) == 1 ||
-           GameState.GetUnitCount(UNIT_TYPEID::TERRAN_BARRACKS) == 3)) {
-        // Build a Tech Lab if no add-on exists and we don't already have one
+          (CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) == 1 ||
+           (CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) == 3) &&
+               CountUnits(UNIT_TYPEID::TERRAN_BARRACKSTECHLAB) > 0)) {
+        // Build a Reactor if no add-on exists and we don't already have one
         Actions()->UnitCommand(barrack, ABILITY_ID::BUILD_REACTOR);
         break; // We only want one Tech Lab, so stop after issuing the command
       }
 
       // Build a Tech Lab if no add-on exists and we don't already have one
       if (barrack->add_on_tag == NullTag &&
-          GameState.GetUnitCount(UNIT_TYPEID::TERRAN_BARRACKS) == 2 && !barrack_tech_lab) {
+          CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) == 2 && !barrack_tech_lab) {
         Actions()->UnitCommand(barrack, ABILITY_ID::BUILD_TECHLAB);
         break; // We only want one Tech Lab, so stop after issuing the command
       }
@@ -794,7 +944,7 @@ void BasicSc2Bot::ManageBarracks() {
       // Research Combat Shields if Stimpack is done and Shields aren't done
       if (add_on &&
           add_on->unit_type == sc2::UNIT_TYPEID::TERRAN_BARRACKSTECHLAB &&
-          !GameState.GetUpgradeStatus(UPGRADE_ID::COMBATSHIELD)) {
+          !HasUpgrade(observation, UPGRADE_ID::SHIELDWALL)) {
         // Send the Combat Shields research command to the Tech Lab
         Actions()->UnitCommand(add_on, sc2::ABILITY_ID::RESEARCH_COMBATSHIELD);
       }
@@ -802,16 +952,19 @@ void BasicSc2Bot::ManageBarracks() {
       // Research Stimpack if a Tech Lab is present and Stimpack isn't done
       if (add_on &&
           add_on->unit_type == sc2::UNIT_TYPEID::TERRAN_BARRACKSTECHLAB &&
-          !GameState.GetUpgradeStatus(UPGRADE_ID::STIMPACK) && 
-          GameState.GetUpgradeStatus(UPGRADE_ID::COMBATSHIELD)) {
+          !HasUpgrade(observation, UPGRADE_ID::STIMPACK) &&
+          HasUpgrade(observation, UPGRADE_ID::SHIELDWALL)) {
         // Send the Stimpack research command to the Tech Lab
         Actions()->UnitCommand(add_on, sc2::ABILITY_ID::RESEARCH_STIMPACK);
       }
 
-      // Train Marines if both upgrades are done
-      if (GameState.GetUpgradeStatus(UPGRADE_ID::STIMPACK) && 
-          GameState.GetUpgradeStatus(UPGRADE_ID::COMBATSHIELD) &&
-          GameState.GetUnitCount(UNIT_TYPEID::TERRAN_MARINE) < 48) {
+      if (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 1 &&
+          CountUnits(UNIT_TYPEID::TERRAN_MARINE) < 48) {
+        // Train Marines if both upgrades are done
+        Actions()->UnitCommand(barrack, ABILITY_ID::TRAIN_MARINE);
+      } else if (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) < 1 &&
+                 CountUnits(UNIT_TYPEID::TERRAN_MARINE) < 5) {
+        // Train 8 Marines to repel early poke before Orbital Command
         Actions()->UnitCommand(barrack, ABILITY_ID::TRAIN_MARINE);
       }
     }
@@ -820,11 +973,8 @@ void BasicSc2Bot::ManageBarracks() {
 
 void BasicSc2Bot::ManageFactory() {
   /*
-  Training Pipeline:
-  1) Produce 5 Hellions first, then transition to Siege Tanks.
-  2) Factory MUST have Tech Lab to make a Siege Tank
-    - If a Starport does not have Tech Lab, we order it to build one.
-  3) Eligible Starports will train Siege Tank
+  Add tech lab add-on immediately if there is none.
+  Train Siege Tanks until we have 6 such units.
   */
   Units factories = Observation()->GetUnits(
       Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_FACTORY));
@@ -832,8 +982,7 @@ void BasicSc2Bot::ManageFactory() {
   for (const auto &factory : factories) {
     const Unit *add_on = Observation()->GetUnit(factory->add_on_tag);
     if (factory->add_on_tag == NullTag) {
-      // If Factory has no add-on AND we have the 4 refineries, order it to
-      // build a Tech Lab
+      // If Factory has no add-on, add a tech lab.
       Actions()->UnitCommand(factory, ABILITY_ID::BUILD_TECHLAB);
     } else if (add_on &&
                add_on->unit_type == UNIT_TYPEID::TERRAN_FACTORYTECHLAB) {
@@ -841,7 +990,8 @@ void BasicSc2Bot::ManageFactory() {
       // Tanks
 
       // Produce Siege Tanks if fewer than 6
-      if (GameState.GetUnitCount(UNIT_TYPEID::TERRAN_SIEGETANK) < 6) {
+      if (CountUnits(UNIT_TYPEID::TERRAN_SIEGETANK) < 6 &&
+          factory->orders.empty()) {
         Actions()->UnitCommand(factory, ABILITY_ID::TRAIN_SIEGETANK);
       }
     }
@@ -871,11 +1021,87 @@ void BasicSc2Bot::ManageStarport() {
 
       // make sure we have at least 1 medivac before we start making vikings,
       // and we have at least 4 vikings before we start making more medivacs
-      if (GameState.GetUnitCount(UNIT_TYPEID::TERRAN_MEDIVAC) < 3) {
+      if (CountUnits(UNIT_TYPEID::TERRAN_MEDIVAC) < 3) {
         Actions()->UnitCommand(starport, ABILITY_ID::TRAIN_MEDIVAC);
       }
     }
   }
+}
+
+const Unit *BasicSc2Bot::FindNearestMineralPatch(const Point2D &start) {
+  Units units = Observation()->GetUnits(Unit::Alliance::Neutral);
+  float distance = std::numeric_limits<float>::max();
+  const Unit *target = nullptr;
+  for (const auto &u : units) {
+    if (u->unit_type == UNIT_TYPEID::NEUTRAL_MINERALFIELD) {
+      float d = DistanceSquared2D(u->pos, start);
+      if (d < distance) {
+        distance = d;
+        target = u;
+      }
+    }
+  }
+  return target;
+}
+
+const Unit *BasicSc2Bot::FindNearestVespene(const Point2D &start) {
+  Units units = Observation()->GetUnits(Unit::Alliance::Neutral);
+  float distance = std::numeric_limits<float>::max();
+  const Unit *target = nullptr;
+  for (const auto &u : units) {
+    if (u->unit_type == UNIT_TYPEID::NEUTRAL_VESPENEGEYSER ||
+        u->unit_type == UNIT_TYPEID::NEUTRAL_RICHVESPENEGEYSER) {
+      float d = DistanceSquared2D(u->pos, start);
+      if (d < distance) {
+        distance = d;
+        target = u;
+      }
+    }
+  }
+  return target;
+}
+
+// helper funciton to determine how many of a cetain unit we have
+int BasicSc2Bot::CountUnits(UNIT_TYPEID unit_type) {
+  const ObservationInterface *observation = Observation();
+  Units units = observation->GetUnits(Unit::Alliance::Self);
+  int count = 0;
+  for (const auto &unit : units) {
+    if (unit->unit_type == unit_type) {
+      ++count;
+    }
+  }
+  return count;
+}
+
+int BasicSc2Bot::MilitaryStrength() {
+  int marines = CountUnits(UNIT_TYPEID::TERRAN_MARINE);
+  int medivacs = CountUnits(UNIT_TYPEID::TERRAN_MEDIVAC);
+  int tanks = CountUnits(UNIT_TYPEID::TERRAN_SIEGETANK);
+
+  bool can_attack = false;
+
+  // if we have 45 marines, 6 siege tanks, and 2 medivacs
+  if (marines >= 40 && tanks >= 6 && medivacs >= 2) {
+    can_attack = true;
+  }
+
+  return can_attack;
+}
+
+// Function to get the location fo the commance center
+Point2D BasicSc2Bot::GetBaseLocation() {
+  if (base_location == Point2D()) {
+    const ObservationInterface *observation = Observation();
+    const Unit *command_center =
+        observation
+            ->GetUnits(Unit::Alliance::Self,
+                       IsUnit(UNIT_TYPEID::TERRAN_COMMANDCENTER))
+            .front();
+    base_location =
+        command_center->pos; // Set base location if not already set.
+  }
+  return base_location;
 }
 
 void BasicSc2Bot::ManageSecondBase() {
@@ -887,16 +1113,68 @@ void BasicSc2Bot::ManageSecondBase() {
       Unit::Alliance::Self,
       IsUnit(UNIT_TYPEID::TERRAN_COMMANDCENTER)); // Get list of all CCs on
                                                   // our team
-  if (GameState.GetUnitCount(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) < 1) {
+  if (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) < 1) {
     for (const auto &cc : ccs) {
-      if (Point2D(cc->pos) != GameState.GetBaseLocation()) {
+      if (Point2D(cc->pos) != base_location) {
         if (cc->orders.empty()) {
           Actions()->UnitCommand(
               cc,
               ABILITY_ID::MORPH_ORBITALCOMMAND); // Change to orbital command
-          GameState.SetSatelliteBuilt(true);
+          satellite_built = true;
         }
       }
+    }
+  }
+}
+
+bool BasicSc2Bot::HasUpgrade(const sc2::ObservationInterface *observation,
+                             sc2::UpgradeID upgrade_id) {
+  const auto &upgrades = observation->GetUpgrades();
+  return std::find(upgrades.begin(), upgrades.end(), upgrade_id) !=
+         upgrades.end();
+}
+
+void BasicSc2Bot::InitializeSatelliteLocation() {
+  const ObservationInterface *observation = Observation();
+  Units mineral_patches =
+      Observation()->GetUnits(Unit::Alliance::Neutral, [](const Unit &unit) {
+        return unit.unit_type == UNIT_TYPEID::NEUTRAL_MINERALFIELD ||
+               unit.unit_type == UNIT_TYPEID::NEUTRAL_MINERALFIELD750;
+      });
+
+  // Get current base mineral patches (those being harvested)
+  const float MIN_DISTANCE = 17.0f; // Minimum distance from current base
+  const float MAX_DISTANCE = 35.0f; // Maximum distance for expansion
+
+  // Find a mineral patch that's at an appropriate distance
+  const Unit *new_mineral_target = nullptr;
+  float best_distance = std::numeric_limits<float>::max();
+
+  for (const auto &mineral : mineral_patches) {
+    float dist_from_current = Distance2D(Point2D(mineral->pos), base_location);
+
+    // Skip if too close or too far
+    if (dist_from_current < MIN_DISTANCE || dist_from_current > MAX_DISTANCE) {
+      continue;
+    }
+
+    // Find the mineral patch closest to our ideal distance
+    // (which is halfway between min and max)
+    float ideal_distance = (MIN_DISTANCE + MAX_DISTANCE) / 2;
+    float distance_from_ideal = std::abs(dist_from_current - ideal_distance);
+
+    if (distance_from_ideal < best_distance) {
+      best_distance = distance_from_ideal;
+      new_mineral_target = mineral;
+    }
+  }
+
+  if (new_mineral_target) {
+    Point2D mineral_target_pos = Point2D(new_mineral_target->pos);
+
+    if (satellite_location == Point2D()) {
+      satellite_location = FindBuildLocation(
+          mineral_target_pos, ABILITY_ID::BUILD_COMMANDCENTER, 6.0f);
     }
   }
 }
