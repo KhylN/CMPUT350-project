@@ -562,7 +562,7 @@ bool BasicSc2Bot::TryBuildBarracks() {
 bool BasicSc2Bot::TryBuildNewCC() {
   // Build satellite command center to facilitate more eco. Built immediately
   // after 1st Vespene
-  if (GameState.GetUnitCount(UNIT_TYPEID::TERRAN_REFINERY) > 0 && !satellite_built) {
+  if (GameState.GetUnitCount(UNIT_TYPEID::TERRAN_REFINERY) > 0 && !GameState.GetSatelliteBuilt()) {
     Units mineral_patches =
         Observation()->GetUnits(Unit::Alliance::Neutral, [](const Unit &unit) {
           return unit.unit_type == UNIT_TYPEID::NEUTRAL_MINERALFIELD ||
@@ -754,7 +754,7 @@ void BasicSc2Bot::ManageBarracks() {
   Units barracks = Observation()->GetUnits(
       Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_BARRACKS));
 
-  if (satellite_built) {
+  if (GameState.GetSatelliteBuilt()) {
 
     // count the number of tech labs attached to barracks
     int tech_labs = 0;
@@ -891,7 +891,7 @@ void BasicSc2Bot::ManageSecondBase() {
           Actions()->UnitCommand(
               cc,
               ABILITY_ID::MORPH_ORBITALCOMMAND); // Change to orbital command
-          satellite_built = true;
+          GameState.SetSatelliteBuilt(true);
         }
       }
     }

@@ -141,6 +141,14 @@ class StateManager {
             return satellite_location;
         }
 
+        bool SetSatelliteBuilt(bool new_value) {
+            satellite_built = new_value;
+        }
+
+        bool GetSatelliteBuilt() {
+            return satellite_built;
+        }
+
         // Get Resource Locations
         const sc2::Unit *FindNearestMineralPatch(const Point2D &start) {
             Units units = Observation()->GetUnits(Unit::Alliance::Neutral);
