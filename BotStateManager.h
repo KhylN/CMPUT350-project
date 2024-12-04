@@ -13,7 +13,8 @@ class StateManager {
         int step_count = 0;
         
         void InitializeEnemyLocations() {
-            const sc2::GameInfo &game_info = SC2APIProtocol::Observation()->GetGameInfo();
+            const sc2::ObservationInterface* observation = SC2APIProtocol::Observation();
+            const sc2::GameInfo &game_info = observation->GetGameInfo();
             for (const sc2::Point2D &starting_location :
                 game_info.enemy_start_locations) {
                 potential_enemy_locations_.push_back(starting_location);
