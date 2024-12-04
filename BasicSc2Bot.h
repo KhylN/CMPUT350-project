@@ -25,6 +25,8 @@ private:
 
 
   sc2::Tag scout_marine_id = 0; // 0 means no scout assigned yet
+  sc2::Tag scv_at_build_site_id = 0; // 0 means no SCV assigned yet
+  
   size_t current_target_index = 0; // Index of the current enemy start position to scout
   sc2::Point2D enemy_base_location; // Enemy base location when identified
   bool scout_died = false;          // Flag to indicate if the scout has died

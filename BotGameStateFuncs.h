@@ -5,6 +5,7 @@ bool HasUpgrade(const sc2::ObservationInterface *observation,
                 sc2::UpgradeID upgrade_id);
 
 const int THRESH = 30;
+void InitializeSatelliteLocation();
 void InitializeEnemyLocations();
 int CountUnits(sc2::UNIT_TYPEID unit_type);
 sc2::Point2D GetBaseLocation();
