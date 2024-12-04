@@ -135,6 +135,15 @@ class StateManager {
             return Point2D();
         }
 
+        // Get Satellite Base Location if it exists. Otherwise, return a blank Point2D.
+        sc2::Point2D GetSatelliteLocation() {
+            if (satellite_location != Point2D()) {
+                return satellite_location;
+            } 
+            // Return base location
+            return Point2D();
+        }
+
         // Get Resource Locations
         const sc2::Unit *FindNearestMineralPatch(const Point2D &start) {
             Units units = Observation()->GetUnits(Unit::Alliance::Neutral);

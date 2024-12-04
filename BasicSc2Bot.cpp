@@ -7,21 +7,21 @@ void BasicSc2Bot::OnStep() {
   if (GameState.step_count < 10) {
     return;
   } else if (GameState.step_count == 10) {
-    GameState.InitializeEnemyLocationsS();
+    GameState.InitializeEnemyLocations();
     GameState.GetBaseLocation();
     std::cout << "Go!" << std::endl;
   } else {
     GameState.GetCurrentState();
     ManageTroopsAndBuildings();
   }
-
+}
 // Will run every time a unit is idle
 void BasicSc2Bot::OnUnitIdle(const sc2::Unit *unit) {
   switch (unit->unit_type.ToType()) {
   case UNIT_TYPEID::TERRAN_COMMANDCENTER: {
     if (unit->assigned_harvesters < 21 &&
         // Build SCVs all other times.
-        Point2D(unit->pos) == base_location) {
+        Point2D(unit->pos) == GameState.GetBaseLocation()) {
       Actions()->UnitCommand(unit, ABILITY_ID::TRAIN_SCV);
     }
     break;
