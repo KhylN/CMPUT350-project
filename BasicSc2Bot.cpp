@@ -475,7 +475,8 @@ bool BasicSc2Bot::TryBuildStructure(ABILITY_ID ability_type_for_structure) {
         unit_is_busy = true;
         break;
       }
-      if (order.ability_id == ABILITY_ID::HARVEST_GATHER) {
+      if (order.ability_id == ABILITY_ID::HARVEST_GATHER ||
+          order.ability_id == ABILITY_ID::HARVEST_RETURN) {
         break;
       }
     }
