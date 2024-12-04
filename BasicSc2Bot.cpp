@@ -465,7 +465,7 @@ void BasicSc2Bot::TryBuildRefinery() {
        GameState.GetUnitCount(UNIT_TYPEID::TERRAN_REFINERY) < 2)) {
     for (const auto &geyser : geysers) {
       // Check distance from the base
-      float distance = Distance2D(geyser->pos, base_location);
+      float distance = Distance2D(geyser->pos, GameState.GetBaseLocation());
       if (distance < 20.0f) { // Only consider geysers within 20 units
         for (const auto &scv : scvs) {
           // Only select SCVs that are not currently harvesting or building
@@ -477,7 +477,7 @@ void BasicSc2Bot::TryBuildRefinery() {
   } else if (GameState.GetUnitCount(UNIT_TYPEID::TERRAN_REFINERY) < 3 &&
              GameState.GetUnitCount(UNIT_TYPEID::TERRAN_MARINE) > 6 &&
              GameState.GetUpgradeStatus(UPGRADE_ID::STIMPACK) &&
-             GameState.GetUpgradeStatus(UPGRADE_ID::COMBATSHIELD) {
+             GameState.GetUpgradeStatus(UPGRADE_ID::COMBATSHIELD)) {
     for (const auto &geyser : geysers) {
       // Check distance from the SATELLITE base
       float distance = Distance2D(geyser->pos, GameState.GetSatelliteLocation());
@@ -553,7 +553,7 @@ bool BasicSc2Bot::TryBuildBarracks() {
   } else if (GameState.GetUnitCount(UNIT_TYPEID::TERRAN_BARRACKS) < 3 &&
              GameState.GetUnitCount(UNIT_TYPEID::TERRAN_MARINE) > 6 &&
              GameState.GetUpgradeStatus(UPGRADE_ID::STIMPACK) &&
-             GameState.GetUpgradeStatus(UPGRADE_ID::COMBATSHIELD) {
+             GameState.GetUpgradeStatus(UPGRADE_ID::COMBATSHIELD)) {
     return TryBuildStructure(ABILITY_ID::BUILD_BARRACKS);
   }
   return false;
@@ -579,7 +579,7 @@ bool BasicSc2Bot::TryBuildNewCC() {
 
     for (const auto &mineral : mineral_patches) {
       float dist_from_current =
-          Distance2D(Point2D(mineral->pos), base_location);
+          Distance2D(Point2D(mineral->pos), GameState.GetBaseLocation());
 
       // Skip if too close or too far
       if (dist_from_current < MIN_DISTANCE ||
@@ -655,8 +655,8 @@ bool BasicSc2Bot::TryBuildStarport() {
   // Build Starport if we don't have one and if we have a Factory.
   if (GameState.GetUnitCount(UNIT_TYPEID::TERRAN_STARPORT) < 1 &&
       GameState.GetUnitCount(UNIT_TYPEID::TERRAN_MARINE) > 6 &&
-      GameState.stim_done &&
-      GameState.shields_done) {
+      GameState.GetUpgradeStatus(UPGRADE_ID::STIMPACK) &&
+      GameState.GetUpgradeStatus(UPGRADE_ID::COMBATSHIELD)) {
     return TryBuildStructure(ABILITY_ID::BUILD_STARPORT);
   }
   return false;
@@ -886,7 +886,7 @@ void BasicSc2Bot::ManageSecondBase() {
                                                   // our team
   if (GameState.GetUnitCount(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) < 1) {
     for (const auto &cc : ccs) {
-      if (Point2D(cc->pos) != base_location) {
+      if (Point2D(cc->pos) != GameState.GetBaseLocation()) {
         if (cc->orders.empty()) {
           Actions()->UnitCommand(
               cc,
