@@ -4,6 +4,8 @@
 void ManageSCVs();
 void ForceSCVsToBuildAndHarvest();
 void ManageTroopsAndBuildings();
+void ManageCC();
+void ManageEnggBay();
 void ManageBarracks();
 void ManageStarport();
 void ManageFactory();
