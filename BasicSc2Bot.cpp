@@ -254,7 +254,7 @@ void BasicSc2Bot::SendArmyTo(const sc2::Point2D &target) {
   if (Distance2D(marines.front()->pos, target) < 40.0f) {
     TryMarineStim();
   }
-  
+
   // Calculate formation points
   sc2::Point2D rally_point = sc2::Point2D((target.x + GetBaseLocation().x) / 2,
                                           (target.y + GetBaseLocation().y) / 2);
@@ -506,16 +506,14 @@ void BasicSc2Bot::TryBuildRefinery() {
        (CountUnits(UNIT_TYPEID::TERRAN_SUPPLYDEPOT) > 0 ||
         CountUnits(UNIT_TYPEID::TERRAN_SUPPLYDEPOTLOWERED) > 0) &&
        CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) > 0) ||
-      ((CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 0 &&
-        CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) > 2) &&
+      (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 0 &&
        CountUnits(UNIT_TYPEID::TERRAN_REFINERY) < 2)) {
     for (const auto &geyser : geysers) {
       // Check distance from the base
       float distance = Distance2D(geyser->pos, base_location);
       if (distance < 20.0f) { // Only consider geysers within 20 units
         for (const auto &scv : scvs) {
-          // Find first available SCV
-          
+          // Only select SCVs that are not currently harvesting or building
           Actions()->UnitCommand(scv, ABILITY_ID::BUILD_REFINERY, geyser);
           break;
         }
