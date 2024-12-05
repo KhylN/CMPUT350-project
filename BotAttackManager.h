@@ -5,6 +5,7 @@ void LaunchAttack();
 bool IsArmyIdle();
 void SendArmyTo(const sc2::Point2D &target);
 bool HasSupportableGroundUnits();
+void TryMarineStim();
 
 bool barrack_tech_lab = false;
 bool stim_done = false;

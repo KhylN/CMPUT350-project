@@ -243,20 +243,18 @@ void BasicSc2Bot::LaunchAttack() {
 void BasicSc2Bot::SendArmyTo(const sc2::Point2D &target) {
   sc2::Units marines = Observation()->GetUnits(
       sc2::Unit::Alliance::Self, sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_MARINE));
-  sc2::Units hellions = Observation()->GetUnits(
-      sc2::Unit::Alliance::Self, sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_HELLION));
   sc2::Units tanks =
       Observation()->GetUnits(sc2::Unit::Alliance::Self,
                               sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_SIEGETANK));
   sc2::Units medivacs = Observation()->GetUnits(
       sc2::Unit::Alliance::Self, sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_MEDIVAC));
-  sc2::Units vikings = Observation()->GetUnits(
-      sc2::Unit::Alliance::Self,
-      sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_VIKINGFIGHTER));
-  sc2::Units marauders =
-      Observation()->GetUnits(sc2::Unit::Alliance::Self,
-                              sc2::IsUnit(sc2::UNIT_TYPEID::TERRAN_MARAUDER));
 
+  // if we are within a certain distance of the target, stim
+  // if we are within 40 units of the target, stim
+  if (Distance2D(marines.front()->pos, target) < 40.0f) {
+    TryMarineStim();
+  }
+  
   // Calculate formation points
   sc2::Point2D rally_point = sc2::Point2D((target.x + GetBaseLocation().x) / 2,
                                           (target.y + GetBaseLocation().y) / 2);
@@ -265,8 +263,6 @@ void BasicSc2Bot::SendArmyTo(const sc2::Point2D &target) {
   std::vector<const sc2::Unit *> ground_units;
   for (const auto &marine : marines)
     ground_units.push_back(marine);
-  for (const auto &marauder : marauders)
-    ground_units.push_back(marauder);
 
   // Send tanks first to establish position
   for (const auto &tank : tanks) {
@@ -279,11 +275,6 @@ void BasicSc2Bot::SendArmyTo(const sc2::Point2D &target) {
   for (const auto &unit : ground_units) {
     if (unit->orders.empty()) {
       Actions()->UnitCommand(unit, sc2::ABILITY_ID::ATTACK_ATTACK, target);
-    }
-  }
-  for (const auto &hellion : hellions) {
-    if (hellion->orders.empty()) {
-      Actions()->UnitCommand(hellion, sc2::ABILITY_ID::ATTACK_ATTACK, target);
     }
   }
 
@@ -313,13 +304,6 @@ void BasicSc2Bot::SendArmyTo(const sc2::Point2D &target) {
     }
   }
 
-  // Send vikings last
-  for (const auto &viking : vikings) {
-    if (viking->orders.empty()) {
-      Actions()->UnitCommand(viking, sc2::ABILITY_ID::ATTACK_ATTACK, target);
-    }
-  }
-
   // Clean up: Check for idle units and direct them to attack nearby enemies
   sc2::Units enemies = Observation()->GetUnits(Unit::Alliance::Enemy);
   for (const auto &unit : ground_units) {
@@ -334,23 +318,10 @@ void BasicSc2Bot::SendArmyTo(const sc2::Point2D &target) {
                              enemies.front()->pos);
     }
   }
-  for (const auto &hellion : hellions) {
-    if (hellion->orders.empty() && !enemies.empty()) {
-      Actions()->UnitCommand(hellion, sc2::ABILITY_ID::ATTACK_ATTACK,
-                             enemies.front()->pos);
-    }
-  }
-  for (const auto &viking : vikings) {
-    if (viking->orders.empty() && !enemies.empty()) {
-      Actions()->UnitCommand(viking, sc2::ABILITY_ID::ATTACK_ATTACK,
-                             enemies.front()->pos);
-    }
-  }
 }
 
 bool BasicSc2Bot::HasSupportableGroundUnits() {
-  return CountUnits(UNIT_TYPEID::TERRAN_MARINE) > 0 ||
-         CountUnits(UNIT_TYPEID::TERRAN_MARAUDER) > 0;
+  return CountUnits(UNIT_TYPEID::TERRAN_MARINE) > 0;
 }
 
 // Attempts to build specified structures - from tutorial
@@ -872,6 +843,30 @@ void BasicSc2Bot::ManageAllTroops() {
             Actions()->UnitCommand(viking, ABILITY_ID::MOVE_MOVE, rally_point);
         }
     }
+}
+
+void BasicSc2Bot::TryMarineStim() {
+  // Get all Marine units
+  auto marines = Observation()->GetUnits(
+      sc2::Unit::Alliance::Self, [](const sc2::Unit &unit) {
+        return unit.unit_type == sc2::UNIT_TYPEID::TERRAN_MARINE &&
+               unit.health > 10.0f; // Only consider healthy Marines
+      });
+
+  // Check if Stimpack has been researched
+  const auto &abilities = Observation()->GetAbilityData();
+  bool stim_researched = HasUpgrade(Observation(), UPGRADE_ID::STIMPACK);
+
+  if (!stim_researched) {
+    return; // Exit if Stimpack isn't researched
+  }
+
+  std::cout << "Marines: " << marines.size() << std::endl;
+  // Command each Marine to use Stimpack
+  for (const auto &marine : marines) {
+    std::cout << "STIMMING" << std::endl << std::endl << std::endl << std::endl;
+    Actions()->UnitCommand(marine, sc2::ABILITY_ID::EFFECT_STIM);
+  }
 }
 
 // MODULAR UNIT TRAINING FUNCTIONS
