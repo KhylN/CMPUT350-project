@@ -194,9 +194,9 @@ void BasicSc2Bot::ManageTroopsAndBuildings() {
 
   TryBuildStarport();
 
-  ManageFactory();
-
   ManageBarracks();
+
+  ManageFactory();
   
   ManageStarport();
 
@@ -587,6 +587,7 @@ bool BasicSc2Bot::TryBuildSupplyDepot() {
   // Calculate current and planned supply capacity
   int current_supply_cap = observation->GetFoodCap();
   int used_supply = observation->GetFoodUsed();
+  int required_supply = used_supply + 8;
 
   // Avoid building if there are already enough depots being built
   if ((CountUnits(UNIT_TYPEID::TERRAN_SUPPLYDEPOT) < 1) &&
@@ -594,12 +595,12 @@ bool BasicSc2Bot::TryBuildSupplyDepot() {
     return TryBuildStructure(ABILITY_ID::BUILD_SUPPLYDEPOT);
   }
 
-  if (used_supply > current_supply_cap - 9 && 
+  if (required_supply >= current_supply_cap && 
       HasUpgrade(observation, UPGRADE_ID::SHIELDWALL)) {
     return TryBuildStructure(ABILITY_ID::BUILD_SUPPLYDEPOT);
   }
 
-  if (used_supply > current_supply_cap - 4 && 
+  if (used_supply >= current_supply_cap - 4 && 
       CountUnits(UNIT_TYPEID::TERRAN_REFINERY) > 0 &&
       CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) > 1) {
     return TryBuildStructure(ABILITY_ID::BUILD_SUPPLYDEPOT);
@@ -925,7 +926,7 @@ void BasicSc2Bot::ManageBarracks() {
       }
 
       if (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) > 0 &&
-          CountUnits(UNIT_TYPEID::TERRAN_MARINE) < 48) {
+          CountUnits(UNIT_TYPEID::TERRAN_MARINE) < 40) {
         // Train Marines if both upgrades are done
         Actions()->UnitCommand(barrack, ABILITY_ID::TRAIN_MARINE);
       } else if (CountUnits(UNIT_TYPEID::TERRAN_ORBITALCOMMAND) < 1 &&
@@ -933,7 +934,7 @@ void BasicSc2Bot::ManageBarracks() {
         // Train 8 Marines to repel early poke before Orbital Command
         Actions()->UnitCommand(barrack, ABILITY_ID::TRAIN_MARINE);
       } else if (CountUnits(UNIT_TYPEID::TERRAN_BARRACKS) > 2 &&
-                CountUnits(UNIT_TYPEID::TERRAN_MARINE) < 48) {
+                CountUnits(UNIT_TYPEID::TERRAN_MARINE) < 40) {
         Actions()->UnitCommand(barrack, ABILITY_ID::TRAIN_MARINE);
       }
     }
@@ -1084,7 +1085,7 @@ int BasicSc2Bot::MilitaryStrength() {
   bool can_attack = false;
 
   // if we have 45 marines, 6 siege tanks, and 2 medivacs
-  if (marines >= 40 && tanks >= 6 && medivacs >= 2) {
+  if (marines >= 35 && tanks >= 5 && medivacs >= 2) {
     can_attack = true;
   }
 
