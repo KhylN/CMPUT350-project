@@ -715,9 +715,29 @@ bool BasicSc2Bot::TryBuildFactory() {
 // TROOP MANAGEMENT
 void BasicSc2Bot::ManageAllTroops() {
 
+  // patrol command for Siege Tanks
+  // Units siegeTanks = Observation()->GetUnits(
+  //     Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_SIEGETANK));
+  // for (const auto &tank : siegeTanks) {
+  //   // Other idle Marines should patrol
+  //   Point2D patrolArea;
+  //   float rx = GetRandomScalar();
+  //   float ry = GetRandomScalar();
+
+  //   if (tank->orders.empty() && !is_attacking) {
+  //     if (satellite_location.x != 0 && satellite_location.y != 0) {
+  //       patrolArea = Point2D(satellite_location.x + rx * 10.0f,
+  //                            satellite_location.y + ry * 20.0f);
+  //     } else {
+  //       patrolArea = GetBaseLocation();
+  //     }
+  //     Actions()->UnitCommand(tank, ABILITY_ID::GENERAL_PATROL, patrolArea);
+  //   }
+  // }
+
   // place siege tanks between the satellite and the enemy base
     sc2::Point2D rally_point = CalculateRallyPoint();
-    const float proximity_threshold = 10.0f;
+    const float proximity_threshold = 20.0f;
 
     // Define a lambda to exclude changelings
     auto IsNotChangeling = [](const sc2::Unit &enemy) {
@@ -851,8 +871,6 @@ void BasicSc2Bot::ManageAllTroops() {
         }
     }
 }
-
-
 
 // MODULAR UNIT TRAINING FUNCTIONS
 void BasicSc2Bot::ManageCC() {
