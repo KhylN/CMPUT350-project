@@ -298,6 +298,7 @@ void BasicSc2Bot::SendArmyTo(const sc2::Point2D &target) {
         // Follow the assigned ground unit
         Actions()->UnitCommand(medivac, sc2::ABILITY_ID::SMART,
                                ground_units[current_unit]);
+        Actions()->UnitCommand(medivac, sc2::ABILITY_ID::UNLOADALL);
         current_unit += units_per_medivac;
       }
     }
@@ -816,7 +817,7 @@ void BasicSc2Bot::ManageAllTroops() {
         Units medivacs = Observation()->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_MEDIVAC));
         for (const auto &medivac : medivacs) {
             if (medivac->orders.empty() && !marines.empty()) {
-                Actions()->UnitCommand(medivac, ABILITY_ID::SMART, marines.front());
+                Actions()->UnitCommand(medivac, ABILITY_ID::MOVE_MOVE, marines.front());
             }
         }
 
@@ -858,7 +859,7 @@ void BasicSc2Bot::ManageAllTroops() {
         for (const auto &medivac : medivacs) {
             if (medivac->orders.empty()) {
                 if (!marines.empty()) {
-                    Actions()->UnitCommand(medivac, ABILITY_ID::SMART, marines.front());
+                    Actions()->UnitCommand(medivac, ABILITY_ID::MOVE_MOVE, marines.front());
                 }
             }
         }
@@ -972,8 +973,7 @@ void BasicSc2Bot::ManageStarport() {
   Training Pipeline:
   1) Starport MUST have Tech Lab to make a Banshee
     - If a Starport does not have Tech Lab, we order it to build one.
-  2) Eligible Starports will train Banshees
-  3) Eligible Starports will train 3 Medivac and then 5 Vikings are created.
+  2) Eligible Starports will train 3 Medivacs.
   */
 
   Units starports = Observation()->GetUnits(
