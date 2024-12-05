@@ -715,9 +715,29 @@ bool BasicSc2Bot::TryBuildFactory() {
 // TROOP MANAGEMENT
 void BasicSc2Bot::ManageAllTroops() {
 
+  // patrol command for Siege Tanks
+  // Units siegeTanks = Observation()->GetUnits(
+  //     Unit::Alliance::Self, IsUnit(UNIT_TYPEID::TERRAN_SIEGETANK));
+  // for (const auto &tank : siegeTanks) {
+  //   // Other idle Marines should patrol
+  //   Point2D patrolArea;
+  //   float rx = GetRandomScalar();
+  //   float ry = GetRandomScalar();
+
+  //   if (tank->orders.empty() && !is_attacking) {
+  //     if (satellite_location.x != 0 && satellite_location.y != 0) {
+  //       patrolArea = Point2D(satellite_location.x + rx * 10.0f,
+  //                            satellite_location.y + ry * 20.0f);
+  //     } else {
+  //       patrolArea = GetBaseLocation();
+  //     }
+  //     Actions()->UnitCommand(tank, ABILITY_ID::GENERAL_PATROL, patrolArea);
+  //   }
+  // }
+
   // place siege tanks between the satellite and the enemy base
     sc2::Point2D rally_point = CalculateRallyPoint();
-    const float proximity_threshold = 10.0f;
+    const float proximity_threshold = 20.0f;
 
     // Define a lambda to exclude changelings
     auto IsNotChangeling = [](const sc2::Unit &enemy) {
@@ -743,18 +763,23 @@ void BasicSc2Bot::ManageAllTroops() {
         if (scout_marine) {
             // Ensure the scout Marine is actively scouting
             if (scout_marine->orders.empty()) {
-                if (current_target_index < potential_enemy_locations_.size()) {
+                const auto& enemy_locations = Observation()->GetGameInfo().enemy_start_locations;
+                if (current_target_index < enemy_locations.size()) {
                     Actions()->UnitCommand(
-                        scout_marine, ABILITY_ID::MOVE_MOVE,
-                        potential_enemy_locations_[current_target_index]);
-                    current_target_index = (current_target_index + 1) % potential_enemy_locations_.size();
+                        scout_marine, ABILITY_ID::MOVE_MOVE, enemy_locations[current_target_index]);
+                    current_target_index++;
+                } else {
+                    // Reset index if all locations have been scouted
+                    current_target_index = 0;
                 }
             }
         } else {
-            // If the scout dies, log the enemy location and stop scouting
-            if (current_target_index < potential_enemy_locations_.size()) {
-                enemy_base_location = potential_enemy_locations_[current_target_index];
-                potential_enemy_locations_.clear(); // Stop further scouting
+            // If the scout dies, log the last enemy location scouted
+            if (current_target_index > 0) {
+                const auto& enemy_locations = Observation()->GetGameInfo().enemy_start_locations;
+                enemy_base_location = enemy_locations[current_target_index - 1];
+                std::cout << "Enemy base confirmed at: "
+                          << enemy_base_location.x << ", " << enemy_base_location.y << std::endl;
             }
         }
     } else {
@@ -846,11 +871,6 @@ void BasicSc2Bot::ManageAllTroops() {
         }
     }
 }
-
-
-
-
-
 
 // MODULAR UNIT TRAINING FUNCTIONS
 void BasicSc2Bot::ManageCC() {
